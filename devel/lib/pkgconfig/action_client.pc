@@ -1,8 +1,0 @@
-prefix=/home/stingray/stingray_ws/devel
-
-Name: action_client
-Description: Description of action_client
-Version: 0.0.0
-Cflags: -I/home/stingray/stingray_ws/devel/include
-Libs: -L${prefix}/lib 
-Requires: 

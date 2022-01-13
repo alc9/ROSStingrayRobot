@@ -1,2 +1,0 @@
-set(object_detection_MESSAGE_FILES "/home/stingray/stingray_ws/src/object_detection/msg/GoalPos.msg;/home/stingray/stingray_ws/src/object_detection/msg/GoalPositions.msg")
-set(object_detection_SERVICE_FILES "/home/stingray/stingray_ws/src/object_detection/srv/Localization.srv")

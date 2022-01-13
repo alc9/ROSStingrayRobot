@@ -1,2 +1,0 @@
-action_client:action_server:object_detection:realsense-ros/realsense2_camera:realsense-ros/realsense2_description
--DPYTHON_EXECUTABLE=/usr/bin/python3 -DCATKIN_ENABLE_TESTING=FALSE -DCMAKE_BUILD_TYPE=Release -DCATKIN_DEVEL_PREFIX=/home/stingray/stingray_ws/devel -DCMAKE_INSTALL_PREFIX=/home/stingray/stingray_ws/install -G Unix Makefiles
