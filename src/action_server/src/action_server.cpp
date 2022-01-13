@@ -62,10 +62,11 @@ class MoveStingrayAction{
         std_msgs::Empty lift_;
     public:
         MoveStingrayAction(std::string name,double searchTime) : 
-            action_server_(nh_,name,boost::bind(&MoveStingrayAction::actionCb,this,_1),true),action_name_(name),search_time_(searchTime){
+            action_server_(nh_,name,boost::bind(&MoveStingrayAction::actionCb,this,_1),false),action_name_(name),search_time_(searchTime){
                 initializeSubscribers();
                 initializePublishers();
                 action_server_.start();
+		ROS_INFO_STREAM("action_server is up...");
 
             }
         ~MoveStingrayAction(void){
@@ -85,10 +86,10 @@ class MoveStingrayAction{
         //initiliaze publishers
         void initializePublishers(void){
             //initialize publisher with queue =1 
-            frequency_left_pub_=nh_.advertise<std_msgs::Float64>("frequency_left",0);
-            frequency_right_pub_=nh_.advertise<std_msgs::Float64>("frequency_right",0);
-            posctrl_pub_=nh_.advertise<std_msgs::Bool>("stingray/posctrl",1);
-            takeoff_pub_=nh_.advertise<std_msgs::Empty>("stingray/takeoff",1);
+            frequency_left_pub_=nh_.advertise<std_msgs::Float64>("stingray/control/frequency_left",0);
+            frequency_right_pub_=nh_.advertise<std_msgs::Float64>("stingray/control/frequency_right",0);
+            posctrl_pub_=nh_.advertise<std_msgs::Bool>("stingray/control/posctrl",1);
+            takeoff_pub_=nh_.advertise<std_msgs::Empty>("stingray/control/takeoff",1);
             //ROS_INFO_STREAM("Publishers initialized");
         }
 
@@ -121,6 +122,7 @@ class MoveStingrayAction{
 
         void actionCb(const action_server::defGoalConstPtr &goal){
             ros::Rate rate(2);
+	    ROS_INFO_STREAM("action_server actionCb starting...");
             bool success = true;
             std_msgs::Float64 leftF;
             std_msgs::Float64 rightF;
@@ -165,12 +167,12 @@ class MoveStingrayAction{
                     //this is done by setting one of the actuators to its neutral position whilst the other one produces a wave
                     case 0:
                         {
-                        ROS_INFO_STREAM("when in doubt do nought");
+                        ROS_INFO_STREAM("calling searching method case 0");
                         //when flat is true increment searchingMethod
                         }
                     case 1:
                         {
-                        ROS_INFO_STREAM("when in doubt do nought");
+                        ROS_INFO_STREAM("calling searching method case 1");
                         }
                     case 2:
                         {
@@ -250,8 +252,9 @@ int main(int argc, char** argv){
 
     ros::init(argc,argv,"action_server_node");
     //generates thread and runs MoveStingrayAction code
-    //search time set to 2 minutes atm 
-    MoveStingrayAction stingrayActionServer("go_to_point_AS",120.0);
+    //search time set to 2 minutes atm
+    //first argument is the name space the client uses for communication 
+    MoveStingrayAction stingrayActionServer("stingray/actions",120.0);
     //ROS Rate synchronizes the frequency for publishers
     //this is in hz 
     //ros::Rate rate(1.0);

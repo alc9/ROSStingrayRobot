@@ -109,6 +109,7 @@ class BottleLocalizer():
         #TODO: add error handling (see aruco detector)
         #request is empty
         #process all objects and let the action client handle them
+        print("localize being called...")
         startTime=rospy.Time.now().to_sec()
         objsDf=self.model_(self.rgb_image_).pandas().xyxy[0] 
         print("time taken: ",rospy.Time.now().to_sec()-startTime)
@@ -157,7 +158,7 @@ def main():
     scoreThreshold=0.25
     #time limit handled by client
     bottleLocalizer=BottleLocalizer(scoreThreshold)
-    localize=rospy.Service('localize',Localization,bottleLocalizer.localize)
+    localize=rospy.Service('stingray/localize',Localization,bottleLocalizer.localize)
     rospy.spin()
 if __name__ == "__main__":
     main()

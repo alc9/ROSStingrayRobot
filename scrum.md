@@ -11,7 +11,7 @@ actionserver(control flow searching for object,control flow found object)
 ______
 In progress:
 Test optional load goals state from cache
-Testing client class within action_client  
+Testing client class within action_client 
 ______
 Finished:
 Add optional goal locations and pose load from file and optional save goal locations and pose to file (testing speed increase and crash recovery)

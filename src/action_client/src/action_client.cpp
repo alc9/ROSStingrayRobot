@@ -48,9 +48,10 @@ class GoalClient{
 	//std::vector<std::vector<float>>way_points_;
     public:
         GoalClient(double searchTime,float convergeSpeed):
-            action_client_(nh_,"goal_client",true),search_time_(searchTime),converge_speed_(convergeSpeed){
-                action_client_.waitForServer();
-                ROS_INFO("Server is now up for goal_client");
+            action_client_(nh_,"stingray/actions",true),search_time_(searchTime),converge_speed_(convergeSpeed){
+                ROS_INFO_STREAM("goal_client is waiting for action_client server...");
+		action_client_.waitForServer();
+                ROS_INFO_STREAM("Server is now up for goal_client!");
 		current_goal_id_ = 0;
 		goal_id_queue_.push(1);
 		goal_id_queue_.push(2);
@@ -60,6 +61,7 @@ class GoalClient{
 		goal_initial_distance_ = 0;
 		goal_location_achieved_=false;
 		begin_time_=0;
+		ROS_INFO_STREAM("GoalClient initialized...");
             }
 	~GoalClient(){}
     private:
@@ -257,9 +259,11 @@ class GoalClient{
 	
 	void searchForObjectTest(){
 		while(ros::ok()){
-			while(!searchForObject());
-			printGoalLocation();
-			return;			
+			searchForObject();
+			if(object_detected_){
+				printGoalLocation();
+				return;
+			}	
 		}	
 	}
 
@@ -304,10 +308,11 @@ class GoalClient{
        		/*
 		 * Search for object
 		 */
-		auto localizationClient=nh_.serviceClient<object_detection::Localization>("localize");
+		auto localizationClient=nh_.serviceClient<object_detection::Localization>("stingray/localize");
 		object_detection::Localization localizationSrv;
-		ROS_INFO_STREAM("waiting for service localize...");
-		ros::service::waitForService("localize");
+		ROS_INFO_STREAM("Goal client is waiting on service localize...");
+		ros::service::waitForService("stingray/localize");
+		ROS_INFO_STREAM("Localize service is up, beginning object detection...");
 		try{
 			if (localizationClient.call(localizationSrv)){
 				ROS_INFO_STREAM("object detected");
@@ -326,6 +331,7 @@ class GoalClient{
 			//publish goalId=0
 			sendGoal();
 			begin_time_ =ros::Time::now().toSec();
+			ROS_INFO_STREAM("object not detected initially - asking stingray to move");
 			while(!object_detected_ || ros::Time::now().toSec()-begin_time_<search_time_){
 				object_detected_=localizationClient.call(localizationSrv);
 			}
@@ -351,56 +357,13 @@ class GoalClient{
         }
 };
 
-//class containing safety action client methods
-//SafetyClient listens to all safety nodes publishing and informs other clients 
-//and action_server when there is a safety issue
-//it also controls how these issues are dealt with 
-class SafetyClient{
-    protected:
-	bool safetyError=false;
-        ros::NodeHandle nh_;
-        //define server 
-        actionlib::SimpleActionClient<action_client::defAction>action_client_;
-	ros::Publisher stop_severity_pub_;
-    public:
-        SafetyClient():
-            action_client_(nh_,"safety_client",true){
-                initializeSubscribers();
-		initializePublishers();
-		action_client_.waitForServer();
-                ROS_INFO("Server is now up for action_client");
-            }
-    private:
-
-	void initializeSubscribers(void){
-		//initialize the subscribers		
-	}
-
-	void initializePublishers(void){
-		stop_severity_pub_=nh_.advertise<std_msgs::Int8>("stingray/stop_severity",0);
-	}
-
-	void cancelGoal(int stopLevelSeverity){
-		//call preemptedRequestOn with level of stop severity action_severity
-		std_msgs::Int8 stopLevelSeverity_;
-		stopLevelSeverity_.data=stopLevelSeverity;
-		stop_severity_pub_.publish(stopLevelSeverity_);
-		action_client_.cancelGoal();	
-	}
-
-        bool checkSafe(){
-            ROS_INFO_STREAM("not implemented");
-        }
-};
-
+//////////main code///////////////
 int main(int argc,char** argv){
     ros::init(argc,argv,"action_client_node");
-    SafetyClient stingraySafetyActionClient();
-    //check is safe 
-    isSafe=true;
     GoalClient stingrayGoalActionClient(140,0.05);    
-    //stingrayGoalActionClient.goalClientMain();
     stingrayGoalActionClient.searchForObjectTest();
+    //topic callbacks are triggered when ros::spin()
+    //is this necessary
     ros::spin();
     return 0;
 }
