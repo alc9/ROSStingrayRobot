@@ -121,8 +121,7 @@ class MoveStingrayAction{
         }
 
         void actionCb(const action_server::defGoalConstPtr &goal){
-            ros::Rate rate(2);
-	    ROS_INFO_STREAM("action_server actionCb starting...");
+            //ros::Rate rate(2);
             bool success = true;
             std_msgs::Float64 leftF;
             std_msgs::Float64 rightF;
@@ -208,7 +207,11 @@ class MoveStingrayAction{
                         success=false;
                         break;
                     }
-                    rate.sleep();
+		    //calculte the difference of frequency
+		    //Kp*(yawRef-yawMeasured)
+		    
+		    //update fleft and right using these frequencies
+                    //rate.sleep();
                     //invoke control-plant to determine frequencies to publish
                 }
                 while(feedback_.distance>0.1);
@@ -236,7 +239,7 @@ class MoveStingrayAction{
                         success=false;
                         break;
                     }
-                    rate.sleep();
+                    //rate.sleep();
                     //invoke control-plant to determine frequencies to publish
                 }
                 while(feedback_.distance>0.01);

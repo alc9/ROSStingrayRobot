@@ -20,7 +20,6 @@
 /*
  * The action client handles goal and event-based behaviour, such as searching for the goal location or handling a water leakage
  */
-bool isSafe = false;
 //class containing goal action client methods
 class GoalClient{
     protected:
@@ -308,10 +307,10 @@ class GoalClient{
        		/*
 		 * Search for object
 		 */
-		auto localizationClient=nh_.serviceClient<object_detection::Localization>("stingray/localize");
+		auto localizationClient=nh_.serviceClient<object_detection::Localization>("stingray/localize/service");
 		object_detection::Localization localizationSrv;
 		ROS_INFO_STREAM("Goal client is waiting on service localize...");
-		ros::service::waitForService("stingray/localize");
+		ros::service::waitForService("stingray/localize/service");
 		ROS_INFO_STREAM("Localize service is up, beginning object detection...");
 		try{
 			if (localizationClient.call(localizationSrv)){

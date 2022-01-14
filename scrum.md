@@ -8,12 +8,15 @@ power supply testing
 servo power monitor node
 actuator_left(update left actuator to include nose)
 actionserver(control flow searching for object,control flow found object)
+Test optional load goals state from cache
+finish writing action_server
 ______
 In progress:
-Test optional load goals state from cache
-Testing client class within action_client 
+Add commander for left actuator
+Write action_publisher python script for testing actuator control
 ______
 Finished:
+Testing goal client class within action_client 
 Add optional goal locations and pose load from file and optional save goal locations and pose to file (testing speed increase and crash recovery)
 adding client class within action_client for communicating with object_detection_server_node
 configuring xml for realsense2_camera node(improved connection quality)

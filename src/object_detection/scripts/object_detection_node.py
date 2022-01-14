@@ -33,6 +33,7 @@ import torch.optim as optim
 import collections
 #import yolo
 import os
+import std_msgs.msg import Bool
 import ros_numpy
 #from rospy.numpy_msg import numpy_msg
 #import pyrealsense2 as rs
@@ -48,6 +49,8 @@ import ros_numpy
 Main class code
 ------------------------------------------------------------------------------------
 """
+terminate = False
+
 class BottleLocalizer():
     def __init__(self,scoreThreshold):
         #run for 1:30 or until found
@@ -59,6 +62,9 @@ class BottleLocalizer():
         # "/camera/depth/color/points"
         self.depth_sub_=rospy.Subscriber("/camera/depth/color/points",PointCloud2,callback=self.depthCb,queue_size=1)#,buff_size=2**21)
         self.rgb_sub_=rospy.Subscriber("/camera/color/image_raw",msg_Image,callback=self.rgbCb,queue_size=1)#,buff_size=2**21)
+        self.valid_data_flag_pub_=rospy.Publisher("stingray/localize/valid_data_flag",Bool,queue_size=1)
+        self.terminate_flag_sub_=rospy.Subscriber("stingray/localize/terminate_flag",Bool,callback=self.terminateFlagCb,queue_size=1)
+        self.valid_data_flag_=Bool()
         self.point_cloud_=None
         self.rgb_image_=None
         self.row_step_=None
@@ -66,7 +72,7 @@ class BottleLocalizer():
         self.cloud_width_=None
         BESTMODELPATH="/home/stingray/stingray_ws/src/object_detection/weights/weights.pt"
         MODELPATH='ultralytics/yolov5'
-        
+        self.call_count_=1 
         #setup gpu
         self.device_ = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print("using - ",self.device_)
@@ -76,8 +82,16 @@ class BottleLocalizer():
         print("inputting dummy image...")
         self.model_(dummyImage)
         self.score_threshold_=scoreThreshold
+        initializePublishers()
         print("object detection service initialized")
     
+    def terminateFlagCb(self,terminateFlag):
+        if terminateFlag.data == False:
+            return
+        else:
+            terminate = True
+            return
+
     def depthCb(self,data):
         assert isinstance(data,PointCloud2)
         self.point_cloud_=data.data#point_cloud2.read_points(data)
@@ -110,6 +124,21 @@ class BottleLocalizer():
         #request is empty
         #process all objects and let the action client handle them
         print("localize being called...")
+        #check data is valid this normally occurs for the first couple of calls
+        if self.call_count_<3:
+            self.call_count_+=1
+            if self.point_cloud_=None or self.rgb_image_=None:
+                self.valid_data_flag_.data=False
+                self.valid_data_flag_pub_.publish(self.valid_data_flag_)
+                return
+            else:
+                self.valid_data_flag_.data=True 
+                self.valid_data_flag_pub_.publish(self.valid_data_flag_)
+        
+        if self.call_count_ = 3:
+            self.valid_data_flag_.data=True
+            self.valid_data_flag_pub_.publish(self.valid_data_flag_)
+        
         startTime=rospy.Time.now().to_sec()
         objsDf=self.model_(self.rgb_image_).pandas().xyxy[0] 
         print("time taken: ",rospy.Time.now().to_sec()-startTime)
@@ -158,7 +187,10 @@ def main():
     scoreThreshold=0.25
     #time limit handled by client
     bottleLocalizer=BottleLocalizer(scoreThreshold)
-    localize=rospy.Service('stingray/localize',Localization,bottleLocalizer.localize)
-    rospy.spin()
+    localize=rospy.Service('stingray/localize/service',Localization,bottleLocalizer.localize)
+    while terminate ==False:
+        pass
+    localize.shutdown("Service not needed")
+    #rospy.spin()
 if __name__ == "__main__":
     main()
