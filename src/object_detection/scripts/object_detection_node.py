@@ -188,7 +188,7 @@ def main():
     #time limit handled by client
     bottleLocalizer=BottleLocalizer(scoreThreshold)
     localize=rospy.Service('stingray/localize/service',Localization,bottleLocalizer.localize)
-    while terminate ==False:
+    while terminate ==False and rospy.ok():
         pass
     localize.shutdown("Service not needed")
     #rospy.spin()

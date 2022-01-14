@@ -38,10 +38,10 @@ class LeftActuatorCommander{
 	
 	private:
 		void initializeSubscribers(void){
-			gt_frequency_params_sub_=nh_.subscriber("/stingray/control/frequency",&LeftActuatorCommander::subscriberFrequencyCb,this);
-			gt_emergency_stop_severity_level_sub_=nh_.subscriber("/stingray/control/emergency_stop_level",&LeftActuatorCommander::subscriberEmergencyStopLevelCb,this);
-			gt_emergency_stop_flag_sub_=nh_.subscriber("/stingray/control/emergency_stop_flag",&LeftActuatorCommander::subscriberEmergencyStopFlagCb,this);
-			gt_pause_flag_sub_=nh_.subscriber("/stingray/control/pause_flag",&LeftActuatorCommand::subscriberPauseFlagCb,this);
+			gt_frequency_params_sub_=nh_.subscriber("stingray/control/frequency",&LeftActuatorCommander::subscriberFrequencyCb,this);
+			gt_emergency_stop_severity_level_sub_=nh_.subscriber("stingray/control/emergency_stop_level",&LeftActuatorCommander::subscriberEmergencyStopLevelCb,this);
+			gt_emergency_stop_flag_sub_=nh_.subscriber("stingray/control/emergency_stop_flag",&LeftActuatorCommander::subscriberEmergencyStopFlagCb,this);
+			gt_pause_flag_sub_=nh_.subscriber("stingray/control/pause_flag",&LeftActuatorCommand::subscriberPauseFlagCb,this);
 		}
 
 		void subscriberFrequencyCb(const std_msgs::Float32::ConstPtr &f){frequency_left_ = f->data;}
