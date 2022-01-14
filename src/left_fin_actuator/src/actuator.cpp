@@ -28,6 +28,7 @@ class LeftActuatorCommander{
 		int emergency_stop_severity_level_;
 	public: 
 		LeftActuatorCommander(){
+			//nh_ = ros::NodeHandle();
 			initializeSubscribers();
 			emergency_stop_flag_=false;
 			pause_flag_=true;
@@ -38,21 +39,21 @@ class LeftActuatorCommander{
 	
 	private:
 		void initializeSubscribers(void){
-			gt_frequency_params_sub_=nh_.subscriber("stingray/control/frequency",&LeftActuatorCommander::subscriberFrequencyCb,this);
-			gt_emergency_stop_severity_level_sub_=nh_.subscriber("stingray/control/emergency_stop_level",&LeftActuatorCommander::subscriberEmergencyStopLevelCb,this);
-			gt_emergency_stop_flag_sub_=nh_.subscriber("stingray/control/emergency_stop_flag",&LeftActuatorCommander::subscriberEmergencyStopFlagCb,this);
-			gt_pause_flag_sub_=nh_.subscriber("stingray/control/pause_flag",&LeftActuatorCommand::subscriberPauseFlagCb,this);
+			gt_frequency_params_sub_=this->nh_.subscribe("stingray/control/frequency",1,&LeftActuatorCommander::subscriberFrequencyCb,this);
+			gt_emergency_stop_severity_level_sub_=this->nh_.subscribe("stingray/control/emergency_stop_level",1,&LeftActuatorCommander::subscriberEmergencyStopLevelCb,this);
+			gt_emergency_stop_flag_sub_=this->nh_.subscribe("stingray/control/emergency_stop_flag",1,&LeftActuatorCommander::subscriberEmergencyStopFlagCb,this);
+			gt_pause_flag_sub_=this->nh_.subscribe("stingray/control/pause_flag",1,&LeftActuatorCommander::subscriberPauseFlagCb,this);
 		}
 
-		void subscriberFrequencyCb(const std_msgs::Float32::ConstPtr &f){frequency_left_ = f->data;}
-		void subscriberEmergencyStopLevelCb(const std_msgs::Int8::Constptr &level){emergency_stop_level_severity_=level->data;}
-		void subscriberEmergencyStopFlagCb(const std_msgs::Bool::ConstPtr &sFlag){emergency_stop_flag_=sFlag->data;}
-		void subscriberPauseFlagCb(const std_msgs::Bool::ConstPtr &pFlag){emergency_pause_flag_=pFlag->data;}
+		void subscriberFrequencyCb(const std_msgs::Float32::ConstPtr &f){this->frequency_left_ = f->data;}
+		void subscriberEmergencyStopLevelCb(const std_msgs::Int8::ConstPtr &level){this->emergency_stop_severity_level_=level->data;}
+		void subscriberEmergencyStopFlagCb(const std_msgs::Bool::ConstPtr &sFlag){this->emergency_stop_flag_=sFlag->data;}
+		void subscriberPauseFlagCb(const std_msgs::Bool::ConstPtr &pFlag){this->pause_flag_=pFlag->data;}
 	public:
-		float gtFrequencyParam(){return frequency_left_;}
-		int gtEmergencyStopLevel(){return emergency_stop_severity_level_;}
-		bool gtEmergencyStopFlag(){return emergency_stop_flag_;}
-		bool gtPauseFlag(){return pause_flag_;}
+		float gtFrequencyParam(){return this->frequency_left_;}
+		int gtEmergencyStopLevel(){return this->emergency_stop_severity_level_;}
+		bool gtEmergencyStopFlag(){return this->emergency_stop_flag_;}
+		bool gtPauseFlag(){return this->pause_flag_;}
 };
 
 int main(int argc,char** argv){
@@ -72,11 +73,13 @@ int main(int argc,char** argv){
     	//65.0 and 115.0
 	ActuatorMultiWave <2,double>actuator(isRightActuator,servoLowerLimit,servoUpperLimit,numberServos,delayTime,resolution,winderRadius,rayThickness,alphaLink,frequency);	
 	actuator.setWaveArray();
+	LeftActuatorCommander commander;
 	//actuator.holdPosition(90.0);
+	auto stopLevel = 1;
     	auto currentFrequency=frequency;
 	while(ros::ok){
-		while(!actuator.gtEmergencyStopFlag()){
-			if (actuator.gtPauseFlag()){
+		while(!commander.gtEmergencyStopFlag()){
+			if (commander.gtPauseFlag()){
 				//pause always uses lowest image stopping method
 				if (currentFrequency != 0.0){
 					currentFrequency=0.0;
@@ -84,9 +87,10 @@ int main(int argc,char** argv){
 				}
 				continue;
 			}
-			if (abs(currentFrequency - actuator.gtFrequencyParam())>0.05){
-				currentFrequency=actuator.gtFrequencyParam();
-				actuator.waveServos(alphaLink,currentFrequency);
+			if (abs(currentFrequency - commander.gtFrequencyParam())>0.05){
+				currentFrequency=commander.gtFrequencyParam();
+				actuator.setWaveArray(alphaLink,currentFrequency);
+				actuator.waveServos();
 			}
 			else{
 				//difference in frequency is very small 
@@ -96,7 +100,7 @@ int main(int argc,char** argv){
 		}
 		//check if already stopped
 		if (currentFrequency!=0.0){
-			stopLevel=actuator.gtEmergencyStopLevel();
+			stopLevel=commander.gtEmergencyStopLevel();
 			
 			if (stopLevel <3){
 				currentFrequency=0.0;

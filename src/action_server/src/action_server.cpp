@@ -179,7 +179,7 @@ class MoveStingrayAction{
                         //when flag is true set serchingMethod back to zero
                         }
                     }
-                    rate.sleep(); 
+                    //rate.sleep(); 
                 }
                 while((double)(ros::Time::now().toSec()-beginTime)<search_time_);
                 break;
