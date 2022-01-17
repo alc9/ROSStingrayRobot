@@ -10,6 +10,7 @@ actuator_left(update left actuator to include nose)
 actionserver(control flow searching for object,control flow found object)
 Test optional load goals state from cache
 finish writing action_server
+adjust ros rates
 ______
 In progress:
 Add commander for left actuator

@@ -69,7 +69,7 @@ int main(int argc,char** argv){
     	auto winderRadius=0.006/2;
     	auto rayThickness=0.008;
     	auto alphaLink=15.0;
-    	auto frequency=1.0;
+    	auto frequency=0.0;
     	//65.0 and 115.0
 	ActuatorMultiWave <2,double>actuator(isRightActuator,servoLowerLimit,servoUpperLimit,numberServos,delayTime,resolution,winderRadius,rayThickness,alphaLink,frequency);	
 	actuator.setWaveArray();

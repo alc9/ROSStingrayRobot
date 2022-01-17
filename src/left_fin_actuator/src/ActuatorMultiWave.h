@@ -67,7 +67,7 @@ class ActuatorMultiWave {
          winderRadius_=winderRadius;
          rayThickness_=rayThickness;
          alphaLink_=alphaLink;
-         if ((frequency<-2.5) || (frequency > 2.5) ||(frequency==0)){
+         if ((frequency<-2.5) || (frequency > 2.5)){
             ROS_ERROR_STREAM("frequency "<<frequency<<"is not within boundary 0.1-2.5HZ");
             ros::shutdown();
          }
@@ -164,7 +164,10 @@ class ActuatorMultiWave {
     int setWaveArray() {
         //contains same logic as setWaveArray() with noargs 
         //float pi = 3.14159265358979;
-        ROS_INFO_STREAM("setWaveArray()");
+        if (this->frequency_==0.0){
+		return 0;
+	}
+	ROS_INFO_STREAM("setWaveArray()");
         auto tmpWaveContainer=std::vector<T>();
         bool waveError=false;
         double tIterator = 0;

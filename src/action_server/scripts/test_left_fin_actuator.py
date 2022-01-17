@@ -1,15 +1,21 @@
 import rospy
-from std_msgs import Bool, Int8,Float32
-from nav_msgs import Odometry
-from geometry_msgs import Twist,Pose,PoseStamped
-from sensor_msgs import Imu
+from std_msgs.msg import Bool, Int8,Float32
+from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Twist,Pose,PoseStamped
+from sensor_msgs.msg import Imu
 import numpy as np
 import math
+import time
 
-class ActuatorControl():
-    def __init__(kp = 0.05,fNom= 1.4):
+# TODO: add fall back if sub broken https://www.reddit.com/r/ROS/comments/j29oz5/is_it_possible_to_change_a_subscribed_topic_on/ 
+class ActuatorController():
+    def __init__(self,kp = 0.05,fNom= 1.4):
         #set subscribers 
-        self.gt_odom_sub_=rospy.Subscriber("odom/sample",Odometry,callback=self.subscriberOdomCb,queue_size=1)
+        #self.gt_odom_sub_=rospy.Subscriber("",Odometry,callback=self.subscriberOdomCb,queue_size=1)
+        
+        #self.gt_odom_backup_sub_=rospy.Subscriber("odometry/filtered",Odometry,callback=self.subscriberOdomBackupCb,queue_size=1)
+
+        self.gt_odom_sub_=rospy.Subscriber("rtabmap/odom",Odometry,callback=self.subscriberOdomCb,queue_size=1)
         #self.gt_imu_sub_=rospy.Subscriber("/")
         #set publishers
         self.frequency_left_pub_=rospy.Publisher("stingray/control/frequency_left",Float32,queue_size=1)
@@ -20,15 +26,11 @@ class ActuatorControl():
         #setup member variables
         self.f_left_ = Float32()
         self.f_right_= Float32()
-        #initial position is taken as zero
-        self.initial_x_=0.0
-        self.initial_y_=0.0
-        self.initial_z_=0.0
         # gp is handles internally by deproject to pixel point 
         # which provides a point in 3D world coordinates
         self.gp_x_=0.0
         self.gp_y_=0.0
-        self.gp_z_=0.6
+        self.gp_z_=0.86
         self.x_=None
         self.y_=None
         self.z_=None
@@ -41,55 +43,26 @@ class ActuatorControl():
         self.deltaf_=None
         self.yaw_ref_=None
         self.yaw_measured_=None
-        self.setYawRef2D()
 
-    def subscriberOdomCb(info): 
+    def subscriberOdomCb(self,info):
         self.x_=info.pose.pose.position.x
-        self.y_=info.pose.pose.position.y
-        self.z_=info.pose.pose.position.z
+        self.z_=info.pose.pose.position.y
+        self.y_=info.pose.pose.position.z
         self.x0_=info.pose.pose.orientation.x
-        self.y0_=info.pose.pose.orientation.y
-        sely.z0_=info.pose.pose.orientation.z 
-    
-    def refAngle3D(xOrigin = 0.0, yOrigin=0.0, zOrigin=0.0):
+        self.y0_=info.pose.pose.orientation.z
+        self.z0_=info.pose.pose.orientation.y
+	
+    def setYawRef2D(self):
         #yaw ref in 2D
         #ab is the line to initial position
-        ABx = self.initial_x_ - self.xOrigin
-        ABy = self.initial_y_ - self.yOrigin
-        ABz = self.initial_z_ - self.zOrigin
+        # z is out of the camera through the line of the nose, x is to the left hand side of the camera
+        nextX = self.z_ + 1 * math.cos(self.yaw_measured_)
+        nextZ=self.x_ + 1*math.sin(self.yaw_measured_)
+        ABx = nextX - self.x_
+        ABz = nextZ - self.z_
         #ac is the line to the goal position
-        BCx = self.gp_x_ -self.xOrigin
-        BCy = self.gp_y_ - self.YOrigin
-        BCz = self.gp_z_ - self.ZOrigin
-        #dot product of lines AB and BC
-        dotProduct = (ABx * BCx + 
-                ABy * BCy + 
-                ABz * BCz)
-
-        magAB = (ABx * ABx +
-                ABy * ABx +
-                ABz* ABz)
-
-        magBC = (BCx * BCx +
-                BCy * BCy + 
-                BCz * BCz)
-        
-        angle = dotProduct
-        angle /=mat.sqrt(magAB * magBC)
-        #angle = (angle * 180)/math.pi
-        return angle
-
-    def setYawRef2D(xOrigin = 0.0,yOrigin=0.0):
-        """
-        TODO: Add projection
-        """
-        #yaw ref in 2D
-        #ab is the line to initial position
-        ABx = self.initial_x_ - self.xOrigin
-        ABy = self.initial_z_ - self.zOrigin
-        #ac is the line to the goal position
-        BCx = self.gp_x_ -self.xOrigin
-        BCy = self.gp_z_ - self.zOrigin
+        BCx = self.gp_x_ -self.x_
+        BCz = self.gp_z_ - self.z_
         #dot product of lines AB and BC
         dotProduct = (ABx * BCx + 
                 ABz * BCz)
@@ -98,28 +71,37 @@ class ActuatorControl():
         magBC = (BCx * BCx +
                 BCz * BCz)
         angle = dotProduct
-        angle /=mat.sqrt(magAB * magBC)
+        angle /=math.sqrt(magAB * magBC)
         #angle = (angle * 180)/math.pi
         self.yaw_ref_ = angle
 
-    def setYawMeasured():
+    def setYawMeasured(self):
         self.yaw_measured_=self.y0_
-
-    def actuatorControlMain():
+        """
+        if self.y0_ < 0:
+            self.yaw_measured_=abs(self.y0_)
+            print("yaw negative ",self.yaw_measured_)
+            return
+        self.yaw_measured_=2*math.pi-self.y0_
+        print("yaw positive",self.yaw_measured_)
+        """
+    def actuatorControlMain(self):
         if self.x_ is None:
-            print("actuatorcontrol is waiting on  odom sub")
+            #print("pose is None")
             return
         self.setYawMeasured()
-        self.deltaf_ = self.Kp_ * (self.yaw_ref_ - self.yaw_measured_)
-        self.f_left_.data=self.nomf-self.deltaf_
-        self.f_right_.data=self.nomf+self.deltaf_
-        frequency_left_pub_.publish(self.f_left_)
-        frequency_right_pub_.publish(self.f_right_)
+        self.setYawRef2D()
+        self.deltaf_ = self.kp_ * (180.0/math.pi)*(self.yaw_ref_ - self.yaw_measured_)
+        self.f_left_.data=self.nomf_ - self.deltaf_
+        self.f_right_.data=self.nomf_ + self.deltaf_
+        self.frequency_left_pub_.publish(self.f_left_)
+        self.frequency_right_pub_.publish(self.f_right_)
 
 def main():
     rospy.init_node('testing_bottle_control_node')
     controller =ActuatorController()
-    while rospy.ok():
+    while not rospy.is_shutdown():
+        time.sleep(2)
         controller.actuatorControlMain()
 if __name__ == "__main__":
     main()
