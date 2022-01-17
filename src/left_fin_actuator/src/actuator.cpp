@@ -21,34 +21,36 @@ class LeftActuatorCommander{
 		ros::Subscriber gt_emergency_stop_severity_level_sub_;
 		ros::Subscriber gt_emergency_stop_flag_sub_;
 		ros::Subscriber gt_pause_flag_sub_;
+		//ros::CallbackQueue cb_queue_;
 		float frequency_left_;
 		bool emergency_stop_flag_;
 		//this is received from action server
 		bool pause_flag_;
 		int emergency_stop_severity_level_;
 	public: 
-		LeftActuatorCommander(){
-			//nh_ = ros::NodeHandle();
+		LeftActuatorCommander() :
+			nh_(ros::NodeHandle())
+		{
 			initializeSubscribers();
 			emergency_stop_flag_=false;
 			pause_flag_=true;
+			frequency_left_=0.0;
 			emergency_stop_severity_level_=1;
-
 			ROS_INFO_STREAM("left_fin_actuator initialized");
 		}
 	
 	private:
 		void initializeSubscribers(void){
-			gt_frequency_params_sub_=this->nh_.subscribe("stingray/control/frequency",1,&LeftActuatorCommander::subscriberFrequencyCb,this);
+			gt_frequency_params_sub_=this->nh_.subscribe("stingray/control/frequency_left",1,&LeftActuatorCommander::subscriberFrequencyCb,this);
 			gt_emergency_stop_severity_level_sub_=this->nh_.subscribe("stingray/control/emergency_stop_level",1,&LeftActuatorCommander::subscriberEmergencyStopLevelCb,this);
 			gt_emergency_stop_flag_sub_=this->nh_.subscribe("stingray/control/emergency_stop_flag",1,&LeftActuatorCommander::subscriberEmergencyStopFlagCb,this);
 			gt_pause_flag_sub_=this->nh_.subscribe("stingray/control/pause_flag",1,&LeftActuatorCommander::subscriberPauseFlagCb,this);
 		}
 
-		void subscriberFrequencyCb(const std_msgs::Float32::ConstPtr &f){this->frequency_left_ = f->data;}
+		void subscriberFrequencyCb(const std_msgs::Float32::ConstPtr &freq){this->frequency_left_ = freq->data; ROS_INFO_STREAM("FREQ:"<<freq->data);}
 		void subscriberEmergencyStopLevelCb(const std_msgs::Int8::ConstPtr &level){this->emergency_stop_severity_level_=level->data;}
 		void subscriberEmergencyStopFlagCb(const std_msgs::Bool::ConstPtr &sFlag){this->emergency_stop_flag_=sFlag->data;}
-		void subscriberPauseFlagCb(const std_msgs::Bool::ConstPtr &pFlag){this->pause_flag_=pFlag->data;}
+		void subscriberPauseFlagCb(const std_msgs::Bool::ConstPtr &pFlag){this->pause_flag_=pFlag->data; ROS_INFO_STREAM("FLAG");}
 	public:
 		float gtFrequencyParam(){return this->frequency_left_;}
 		int gtEmergencyStopLevel(){return this->emergency_stop_severity_level_;}
@@ -70,6 +72,7 @@ int main(int argc,char** argv){
     	auto rayThickness=0.008;
     	auto alphaLink=15.0;
     	auto frequency=0.0;
+	//ros::Rate r(0.5);
     	//65.0 and 115.0
 	ActuatorMultiWave <2,double>actuator(isRightActuator,servoLowerLimit,servoUpperLimit,numberServos,delayTime,resolution,winderRadius,rayThickness,alphaLink,frequency);	
 	actuator.setWaveArray();
@@ -78,25 +81,38 @@ int main(int argc,char** argv){
 	auto stopLevel = 1;
     	auto currentFrequency=frequency;
 	while(ros::ok){
+		ros::spinOnce();
 		while(!commander.gtEmergencyStopFlag()){
+			ros::spinOnce();
 			if (commander.gtPauseFlag()){
 				//pause always uses lowest image stopping method
 				if (currentFrequency != 0.0){
 					currentFrequency=0.0;
-					actuator.emergencyStop(1);	
+					actuator.emergencyStop(1);
+					continue;	
 				}
 				continue;
 			}
-			if (abs(currentFrequency - commander.gtFrequencyParam())>0.05){
+			ROS_INFO_STREAM("fparam: "<<commander.gtFrequencyParam());	
+			if (abs(abs(currentFrequency) - abs(commander.gtFrequencyParam()))>0.05){
+				ROS_INFO_STREAM("gtFrequencyParam");
 				currentFrequency=commander.gtFrequencyParam();
+				ROS_INFO_STREAM("setWaveArray");
 				actuator.setWaveArray(alphaLink,currentFrequency);
+				ROS_INFO_STREAM("setting wave array");
 				actuator.waveServos();
+				ROS_INFO_STREAM("continue");
+				continue;
 			}
 			else{
 				//difference in frequency is very small 
-				actuator.waveServos();
+				if (currentFrequency!=0.0){
+					actuator.waveServos();
+				}
+				continue;
 			
 			}
+			//r.sleep();
 		}
 		//check if already stopped
 		if (currentFrequency!=0.0){
@@ -118,6 +134,7 @@ int main(int argc,char** argv){
 				ROS_INFO_STREAM("Invalid input parameter");
 			}
 		}
+	//r.sleep();
 	}
 	return 0;
 }

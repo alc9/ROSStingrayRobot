@@ -7,9 +7,7 @@ add_compile_options(-std=c++11 -li2c)
 find_package(catkin REQUIRED COMPONENTS roscpp std_msgs)
 #find_package(sys)
 #find_package(linux)
-
 catkin_package(INCLUDE_DIRS include)
-
 ###########
 ## Build ##
 ###########

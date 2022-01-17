@@ -100,9 +100,13 @@ class ActuatorController():
 def main():
     rospy.init_node('testing_bottle_control_node')
     controller =ActuatorController()
+    flag = Bool()
     while not rospy.is_shutdown():
         time.sleep(2)
         controller.actuatorControlMain()
+        flag.data = False
+        controller.pause_flag_pub_.publish(flag.data)
+            
 if __name__ == "__main__":
     main()
 

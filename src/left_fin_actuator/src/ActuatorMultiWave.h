@@ -423,6 +423,10 @@ class ActuatorMultiWave {
 
     void waveServos(){
         //waveVector[0] is not possible if the matrix is square
+	if (this->frequency_==0){
+		ROS_INFO_STREAM("Frequency is zero");
+		return;
+	}
         for (int waveIndex=0;waveIndex!=waveVector[0].size();waveIndex++){
             for (auto actuatorIterator=this->begin();actuatorIterator!=this->end();actuatorIterator++){
                 int actuatorPos=(actuatorIterator-this->begin())/2;
