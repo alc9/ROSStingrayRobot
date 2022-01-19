@@ -2,9 +2,10 @@
 
 #include <actionlib/server/simple_action_server.h>
 #include<action_server/defAction.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+//#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <nav_msgs/Odometry.h>
-#include <LinearMath/btMatrix3x3.h>
+#include <geometry_msgs/Quaternion.h>
+#include <tf/LinearMath/Matrix3x3.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -114,7 +115,13 @@ class MoveStingrayAction{
             x_=info->pose.pose.position.x;
             z_=info->pose.pose.position.y;
             y_=info->pose.pose.position.z;
-	    tf::Matrix3x3(info.pose.pose.orientation).getRPY(x0_,z0_,y0_);
+	    tf::Quaternion tmpQuat;
+	    double x0,y0,z0;
+	    tf::quaternionMsgToTF(info->pose.pose.orientation,tmpQuat);
+	    tf::Matrix3x3(tmpQuat).getRPY(x0,z0,y0);
+	    x0_=x0;
+	    y0_=y0_;
+	    z0_=z0_;
 	    //x0_=info->pose.pose.orientation.x;
 	    //z0_=info->pose.pose.orientation.y;
 	    //y0_=info->pose.pose.orientation.z;
