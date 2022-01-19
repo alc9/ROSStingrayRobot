@@ -18,7 +18,7 @@
 #include <object_detection/LocalizationResponse.h>
 //TODO: publisher shuts down object_detection
 /*
- * The action client handles goal and event-based behaviour, such as searching for the goal location or handling a water leakage
+ * The action client handles goal based behaviour
  */
 //class containing goal action client methods
 class GoalClient{
@@ -28,7 +28,6 @@ class GoalClient{
         actionlib::SimpleActionClient<action_client::defAction>action_client_;
 	//define server interactions 
 	action_client::defGoal goal_;
-        //member variables
 	std::queue<int>goal_id_queue_;
         std::vector<float> goal_location_;
 	float* goal_initial_distance_ptr_;

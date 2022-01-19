@@ -47,10 +47,10 @@ class LeftActuatorCommander{
 			gt_pause_flag_sub_=this->nh_.subscribe("stingray/control/pause_flag",1,&LeftActuatorCommander::subscriberPauseFlagCb,this);
 		}
 
-		void subscriberFrequencyCb(const std_msgs::Float32::ConstPtr &freq){this->frequency_left_ = freq->data; ROS_INFO_STREAM("FREQ:"<<freq->data);}
+		void subscriberFrequencyCb(const std_msgs::Float32::ConstPtr &freq){this->frequency_left_ = freq->data;}
 		void subscriberEmergencyStopLevelCb(const std_msgs::Int8::ConstPtr &level){this->emergency_stop_severity_level_=level->data;}
-		void subscriberEmergencyStopFlagCb(const std_msgs::Bool::ConstPtr &sFlag){this->emergency_stop_flag_=sFlag->data;}
-		void subscriberPauseFlagCb(const std_msgs::Bool::ConstPtr &pFlag){this->pause_flag_=pFlag->data; ROS_INFO_STREAM("FLAG");}
+		void subscriberEmergencyStopFlagCb(const std_msgs::Bool::ConstPtr &sFlag){this->emergency_stop_flag_=sFlag->data; if (emergency_stop_flag_){this->pause_flag_=true;}}
+		void subscriberPauseFlagCb(const std_msgs::Bool::ConstPtr &pFlag){if (this->emergency_stop_flag_){this->pause_flag_=true; return;}this->pause_flag_=pFlag->data; ROS_INFO_STREAM("FLAG");}
 	public:
 		float gtFrequencyParam(){return this->frequency_left_;}
 		int gtEmergencyStopLevel(){return this->emergency_stop_severity_level_;}
@@ -72,12 +72,10 @@ int main(int argc,char** argv){
     	auto rayThickness=0.008;
     	auto alphaLink=15.0;
     	auto frequency=0.0;
-	//ros::Rate r(0.5);
     	//65.0 and 115.0
 	ActuatorMultiWave <2,double>actuator(isRightActuator,servoLowerLimit,servoUpperLimit,numberServos,delayTime,resolution,winderRadius,rayThickness,alphaLink,frequency);	
 	actuator.setWaveArray();
 	LeftActuatorCommander commander;
-	//actuator.holdPosition(90.0);
 	auto stopLevel = 1;
     	auto currentFrequency=frequency;
 	while(ros::ok){
@@ -93,15 +91,10 @@ int main(int argc,char** argv){
 				}
 				continue;
 			}
-			ROS_INFO_STREAM("fparam: "<<commander.gtFrequencyParam());	
 			if (abs(abs(currentFrequency) - abs(commander.gtFrequencyParam()))>0.05){
-				ROS_INFO_STREAM("gtFrequencyParam");
 				currentFrequency=commander.gtFrequencyParam();
-				ROS_INFO_STREAM("setWaveArray");
 				actuator.setWaveArray(alphaLink,currentFrequency);
-				ROS_INFO_STREAM("setting wave array");
 				actuator.waveServos();
-				ROS_INFO_STREAM("continue");
 				continue;
 			}
 			else{
@@ -112,7 +105,6 @@ int main(int argc,char** argv){
 				continue;
 			
 			}
-			//r.sleep();
 		}
 		//check if already stopped
 		if (currentFrequency!=0.0){
@@ -130,11 +122,7 @@ int main(int argc,char** argv){
 				continue;
 			}
 
-			else{
-				ROS_INFO_STREAM("Invalid input parameter");
-			}
 		}
-	//r.sleep();
 	}
 	return 0;
 }
