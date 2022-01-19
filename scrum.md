@@ -12,9 +12,11 @@ Test optional load goals state from cache
 
 ______
 In progress:
-finish writing action_server (integrate python control into c++ code)
+perform IMU calibration 
+adjust settings for opensource tracking
 ______
 Finished:
+finish writing action_server (integrate python control into c++ code)
 Test actuator control and commander c++ class
 Add commander for left actuator
 Write action_publisher python script for testing actuator control

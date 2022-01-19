@@ -2,8 +2,9 @@
 
 #include <actionlib/server/simple_action_server.h>
 #include<action_server/defAction.h>
-
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <nav_msgs/Odometry.h>
+#include <LinearMath/btMatrix3x3.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -14,6 +15,7 @@
 #include <std_msgs/Float32.h>
 #include <std_msgs/String.h>
 #include <cmath>
+#include <tf/transform_datatypes.h>
 /*
  * The action server handles the controller and plant control system, it is communicated to by the action client which handles safety and current goal logic. The action client sends goal and cancellation messages to the action server, whilst the action server sends status,result and feedback messages to the action client.
  */
@@ -34,7 +36,8 @@ class MoveStingrayAction{
 
         //define subscribers
         //pose identifies tells us location and orientation of camera
-        ros::Subscriber gt_odom_sub_;
+        //TODO:check odom sub quality - if low switch to sensor fusion
+	ros::Subscriber gt_odom_sub_;
 	ros::Subscriber gt_emergency_stop_sub_;
 	float x_;
         float y_;
@@ -111,9 +114,10 @@ class MoveStingrayAction{
             x_=info->pose.pose.position.x;
             z_=info->pose.pose.position.y;
             y_=info->pose.pose.position.z;
-	    x0_=info->pose.pose.orientation.x;
-	    z0_=info->pose.pose.orientation.y;
-	    y0_=info->pose.pose.orientation.z;
+	    tf::Matrix3x3(info.pose.pose.orientation).getRPY(x0_,z0_,y0_);
+	    //x0_=info->pose.pose.orientation.x;
+	    //z0_=info->pose.pose.orientation.y;
+	    //y0_=info->pose.pose.orientation.z;
         }
        	
 	void subscriberCbES(const std_msgs::Bool::ConstPtr &info){

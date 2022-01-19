@@ -28,3 +28,5 @@ intel opensource slam depends on madgwick, rtabmap, and robot_localization
 Madgwick fuses angular velocities, accelerations and magnetic readings into an orientation.RTAB is an RGB-D slam approach which can create 3D point clouds or 2D occupancy maps, robot localization is a collection of state estimation nodes which provides an estimate for the position and orientation. 
 #check motion module with 
 rs-motion
+#check tf data
+tf_echo

@@ -23,6 +23,9 @@ import cv2
 from std_srvs.srv import Empty
 from std_srvs.srv import EmptyResponse
 from std_msgs.msg import String, Float32MultiArray,Time
+from nav_msgs.msg import Odometry
+import tf
+import message_filters
 #defined messages
 from object_detection.msg import GoalPos as gp
 from object_detection.msg import GoalPositions as gps
@@ -35,8 +38,6 @@ import collections
 import os
 import std_msgs.msg import Bool
 import ros_numpy
-#from rospy.numpy_msg import numpy_msg
-#import pyrealsense2 as rs
 #roslaunch realsense2_camera rs_camera.launch align_depth:=true
 # roslaunch realsense2_camera rs_camera.launch enable_pointcloud:=true
 # roslaunch realsense2_camera rs_camera.launch enable_pointcloud:=true align_depth:=true
@@ -50,21 +51,27 @@ Main class code
 ------------------------------------------------------------------------------------
 """
 terminate = False
-
+#TODO: ensure all data is synchronized
 class BottleLocalizer():
     def __init__(self,scoreThreshold):
         #run for 1:30 or until found
         #cv bridge is very iffy
         #self.bridge_=CvBridge()
         #subscribers have synchronized data from realsense2 implementation
-        #TODO: also need to keep an eye on the realtime or work in absolute coordinates for the depth image
         #aligned_depth_to_color / depth
         # "/camera/depth/color/points"
-        self.depth_sub_=rospy.Subscriber("/camera/depth/color/points",PointCloud2,callback=self.depthCb,queue_size=1)#,buff_size=2**21)
-        self.rgb_sub_=rospy.Subscriber("/camera/color/image_raw",msg_Image,callback=self.rgbCb,queue_size=1)#,buff_size=2**21)
+        #TODO: choose between pose based on quality
+        self.depth_sub_=message_filters.Subscriber("/camera/depth/color/points",PointCloud2)#,buff_size=2**21)
+        self.rgb_sub_=message_filters.Subscriber("/camera/color/image_raw",msg_Image)#,buff_size=2**21)
+        #publishers
         self.valid_data_flag_pub_=rospy.Publisher("stingray/localize/valid_data_flag",Bool,queue_size=1)
         self.terminate_flag_sub_=rospy.Subscriber("stingray/localize/terminate_flag",Bool,callback=self.terminateFlagCb,queue_size=1)
+        self.tf_listener_=tf.TransformListener()
+        self.ats = message_filters.ApproxTimeSynchronizer([depth_sub_,rgb_sub_],queue_size=1,slop=0.5)
+        ats.registerCallback(self.syncMessageCb)
         self.valid_data_flag_=Bool()
+        tf_listener_=tf.TransformationListener()
+        tf_mat_=None
         self.point_cloud_=None
         self.rgb_image_=None
         self.row_step_=None
@@ -72,7 +79,6 @@ class BottleLocalizer():
         self.cloud_width_=None
         BESTMODELPATH="/home/stingray/stingray_ws/src/object_detection/weights/weights.pt"
         MODELPATH='ultralytics/yolov5'
-        self.call_count_=1 
         #setup gpu
         self.device_ = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print("using - ",self.device_)
@@ -83,15 +89,35 @@ class BottleLocalizer():
         self.model_(dummyImage)
         self.score_threshold_=scoreThreshold
         initializePublishers()
-        print("object detection service initialized")
+        print("object detection service initialized") 
     
+    def syncMessagesCb(self,pData,rgbData):
+        assert isinstance(pData,PointCloud2)
+        assert isinstance(data,msg_Image)
+        #point cloud
+        self.point_cloud_=pData.data
+        self.row_step_=pData.row_step
+        self.point_step_=pData.point_step
+        self.cloud_width_=pData.width
+        #rgb image
+        self.rgb_image_=ros_numpy.numpify(rgbData)
+        self.pixels_per_row_=self.rgb_image_.shape[0]//rgbData.height
+        self.pixels_per_column_=self.rgb_image_.shape[1]//rgbData.width 
+        #calculate the tf matrix between camera to world/map
+        #euler = tf.transformation.euler_from_quaternion(poseData.pose.pose.orientation)
+        #tf_mat_=np.array([[euler[0],0.0,0.0,poseData.pose.pose.position.x],[0.0,euler[2],0.0, poseData.pose.pose.position.z],[0.0,0.0,euler[1],poseData.pose.pose.position.y],[0.0,0.0,0.0,1.0]])
+        #tf_mat_=self.tf_listener_.asMatrix("/map",pData.header)
+        #from camera_link to /map
+        translation,quaternion=self.tf_listener("/map","/camera_link")
+        tf_mat_=tf_listener.fromTranslationRotation(translation,quaternion)
+
     def terminateFlagCb(self,terminateFlag):
         if terminateFlag.data == False:
             return
         else:
             terminate = True
             return
-
+    """ 
     def depthCb(self,data):
         assert isinstance(data,PointCloud2)
         self.point_cloud_=data.data#point_cloud2.read_points(data)
@@ -106,7 +132,7 @@ class BottleLocalizer():
         #numer of rows
         self.pixels_per_row_=self.rgb_image_.shape[0]//data.height
         self.pixels_per_column_=self.rgb_image_.shape[1]//data.width
-
+    """
     def saveVisual(self,numpyImage,resultsDf,show=False,uniqueId=False):
         import matplotlib.pyplot as plt
         import matplotlib.patches as patches 
@@ -125,6 +151,7 @@ class BottleLocalizer():
         #process all objects and let the action client handle them
         print("localize being called...")
         #check data is valid this normally occurs for the first couple of calls
+        """
         if self.call_count_<3:
             self.call_count_+=1
             if self.point_cloud_=None or self.rgb_image_=None:
@@ -138,7 +165,7 @@ class BottleLocalizer():
         if self.call_count_ = 3:
             self.valid_data_flag_.data=True
             self.valid_data_flag_pub_.publish(self.valid_data_flag_)
-        
+        """
         startTime=rospy.Time.now().to_sec()
         objsDf=self.model_(self.rgb_image_).pandas().xyxy[0] 
         print("time taken: ",rospy.Time.now().to_sec()-startTime)
@@ -166,11 +193,15 @@ class BottleLocalizer():
             #x,y,z in realworld coords - x is positive towards the right of the camera,y goes positive down from the centre, z goes positive out twards what the camera is looking at
             #fmt is float32
             (X,Y,Z)=struct.unpack_from('fff',self.point_cloud_,offset=int(index))
-            depthArray.append([X,Y,Z])
+            #transform point to map N.B x,y,z = x,z,y
+            #switch back x,z,y to x,y,z
+            resultxzy = np.dot(self.tf_mat_,np.array([X,Z,Y,1.0]))
+            depthArray.append([resultxzy[0],resultxzy[2],resultxzy[1]])
         print(depthArray) 
         self.saveVisual(self.rgb_image_,objsDf)
         pData=gp()
-        pDatas=gps() 
+        pDatas=gps()
+        #transform point N.B x,y,z = x,z,y
         for pixLocation in depthArray:
             pData.X=pixLocation[0]
             pData.Y=pixLocation[1]
