@@ -2,14 +2,12 @@ ______
 TODO:
 configure launch file
 compute resource monitor node
-temperature/pressure node
-water leakage node
 power supply testing
 servo power monitor node
 actuator_left(update left actuator to include nose)
-actionserver(control flow searching for object,control flow found object)
+water leakage and temperature/pressure arduino node
 Test optional load goals state from cache
-
+test pipeline 
 ______
 In progress:
 perform IMU calibration 

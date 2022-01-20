@@ -30,3 +30,9 @@ Madgwick fuses angular velocities, accelerations and magnetic readings into an o
 rs-motion
 #check tf data
 tf_echo
+# memory addresses 
+sudo i2cdetect -y -r 1
+0x40 (left fin)
+0x41 (right fin)
+bmp180 0x77
+

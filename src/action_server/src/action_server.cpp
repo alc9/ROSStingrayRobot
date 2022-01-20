@@ -120,11 +120,8 @@ class MoveStingrayAction{
 	    tf::quaternionMsgToTF(info->pose.pose.orientation,tmpQuat);
 	    tf::Matrix3x3(tmpQuat).getRPY(x0,z0,y0);
 	    x0_=x0;
-	    y0_=y0_;
-	    z0_=z0_;
-	    //x0_=info->pose.pose.orientation.x;
-	    //z0_=info->pose.pose.orientation.y;
-	    //y0_=info->pose.pose.orientation.z;
+	    y0_=y0;
+	    z0_=z0;
         }
        	
 	void subscriberCbES(const std_msgs::Bool::ConstPtr &info){
@@ -148,7 +145,7 @@ class MoveStingrayAction{
 				+ BCz * BCz;
 		float angle = dotProduct;
 		angle/=sqrt(magAB * magBC);
-		yaw_ref_ = angle;
+		yaw_ref_ = acos(angle);
 	}
 
        	void actuatorController(){
