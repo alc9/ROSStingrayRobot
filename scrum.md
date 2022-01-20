@@ -1,5 +1,6 @@
 ______
 TODO:
+run_robot.sh - check i2c, and call the various launch files
 configure launch file
 compute resource monitor node
 power supply testing
