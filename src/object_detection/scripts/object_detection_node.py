@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import
 import sys
+sys.path.append("/opt/ros/melodic/lib/python2.7/dist-packages/tf2_py/__init__.py")
 import struct
 #sys.path.remove('/opt/ros/melodic/lib/python2.7/dist-packages')
 #sys.path.add(/)
 #print(sys.path)
+#sys.path.append("/opt/ros/melodic/lib/python2.7/dist-packages/tf2_py")
 import rospy
 import pandas as pd
 from sensor_msgs.msg import Image as msg_Image
@@ -24,7 +27,8 @@ from std_srvs.srv import Empty
 from std_srvs.srv import EmptyResponse
 from std_msgs.msg import String, Float32MultiArray,Time
 from nav_msgs.msg import Odometry
-import tf
+#import tf
+from _tf2 import *
 import message_filters
 #defined messages
 from object_detection.msg import GoalPos as gp
@@ -36,8 +40,9 @@ import torch.optim as optim
 import collections
 #import yolo
 import os
-import std_msgs.msg import Bool
+from std_msgs.msg import Bool
 import ros_numpy
+# https://answers.ros.org/question/326226/importerror-dynamic-module-does-not-define-module-export-function-pyinit__tf2/
 #roslaunch realsense2_camera rs_camera.launch align_depth:=true
 # roslaunch realsense2_camera rs_camera.launch enable_pointcloud:=true
 # roslaunch realsense2_camera rs_camera.launch enable_pointcloud:=true align_depth:=true
@@ -67,10 +72,9 @@ class BottleLocalizer():
         self.valid_data_flag_pub_=rospy.Publisher("stingray/localize/valid_data_flag",Bool,queue_size=1)
         self.terminate_flag_sub_=rospy.Subscriber("stingray/localize/terminate_flag",Bool,callback=self.terminateFlagCb,queue_size=1)
         self.tf_listener_=tf.TransformListener()
-        self.ats = message_filters.ApproxTimeSynchronizer([depth_sub_,rgb_sub_],queue_size=1,slop=0.5)
+        self.ats = message_filters.ApproxTimeSynchronizer([self.depth_sub_,self.rgb_sub_,self.tf_listener_],queue_size=1,slop=0.5)
         ats.registerCallback(self.syncMessageCb)
         self.valid_data_flag_=Bool()
-        tf_listener_=tf.TransformationListener()
         tf_mat_=None
         self.point_cloud_=None
         self.rgb_image_=None

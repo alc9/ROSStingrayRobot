@@ -35,4 +35,7 @@ sudo i2cdetect -y -r 1
 0x40 (left fin)
 0x41 (right fin)
 bmp180 0x77
-
+# test imports
+python -c "import tf"
+# dependencies installed
+/opt/ros/melodic/lib
