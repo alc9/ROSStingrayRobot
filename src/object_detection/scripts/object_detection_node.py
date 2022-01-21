@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 import sys
-sys.path.append("/opt/ros/melodic/lib/python2.7/dist-packages/tf2_py/__init__.py")
+#sys.path[:0]=["/usr/local/lib/python3.6/dist-packages/"]
 import struct
 #sys.path.remove('/opt/ros/melodic/lib/python2.7/dist-packages')
 #sys.path.add(/)
@@ -27,8 +27,8 @@ from std_srvs.srv import Empty
 from std_srvs.srv import EmptyResponse
 from std_msgs.msg import String, Float32MultiArray,Time
 from nav_msgs.msg import Odometry
-#import tf
-from _tf2 import *
+import tf
+#from _tf2 import *
 import message_filters
 #defined messages
 from object_detection.msg import GoalPos as gp
@@ -42,6 +42,9 @@ import collections
 import os
 from std_msgs.msg import Bool
 import ros_numpy
+#from message_filters import SimpleFilter
+
+
 # https://answers.ros.org/question/326226/importerror-dynamic-module-does-not-define-module-export-function-pyinit__tf2/
 #roslaunch realsense2_camera rs_camera.launch align_depth:=true
 # roslaunch realsense2_camera rs_camera.launch enable_pointcloud:=true
@@ -69,11 +72,16 @@ class BottleLocalizer():
         self.depth_sub_=message_filters.Subscriber("/camera/depth/color/points",PointCloud2)#,buff_size=2**21)
         self.rgb_sub_=message_filters.Subscriber("/camera/color/image_raw",msg_Image)#,buff_size=2**21)
         #publishers
-        self.valid_data_flag_pub_=rospy.Publisher("stingray/localize/valid_data_flag",Bool,queue_size=1)
+        #self.valid_data_flag_pub_=rospy.Publisher("stingray/localize/valid_data_flag",Bool,queue_size=1)
+        
         self.terminate_flag_sub_=rospy.Subscriber("stingray/localize/terminate_flag",Bool,callback=self.terminateFlagCb,queue_size=1)
+        # tf.MessageFilter
         self.tf_listener_=tf.TransformListener()
-        self.ats = message_filters.ApproxTimeSynchronizer([self.depth_sub_,self.rgb_sub_,self.tf_listener_],queue_size=1,slop=0.5)
-        ats.registerCallback(self.syncMessageCb)
+        self.ats = message_filters.ApproximateTimeSynchronizer([self.depth_sub_,self.rgb_sub_],queue_size=1,slop=0.5)
+        #filter code for tf
+          
+        #self.ats=TFMessageFilter(rgb_sub_,'/map','/camera_link',queue_size=100)
+        #ats.registerCallback(self.syncMessageCb)
         self.valid_data_flag_=Bool()
         tf_mat_=None
         self.point_cloud_=None
@@ -92,12 +100,18 @@ class BottleLocalizer():
         print("inputting dummy image...")
         self.model_(dummyImage)
         self.score_threshold_=scoreThreshold
-        initializePublishers()
+        #initializePublishers()
         print("object detection service initialized") 
-    
+
     def syncMessagesCb(self,pData,rgbData):
         assert isinstance(pData,PointCloud2)
         assert isinstance(data,msg_Image)
+        if self.listener.canTransform("/map","/camera_link",pData.header.stamp):
+            #translation,quaternion=self.tf_listener("/map","/camera_link")
+            translation,quarternion = sel.tf_listener.lookupTransform("/map","/camera_link",pData.header.stamp)
+            tf_mat_=tf_listener.fromTranslationRotation(translation,quaternion)
+        else:
+            return
         #point cloud
         self.point_cloud_=pData.data
         self.row_step_=pData.row_step
@@ -112,16 +126,14 @@ class BottleLocalizer():
         #tf_mat_=np.array([[euler[0],0.0,0.0,poseData.pose.pose.position.x],[0.0,euler[2],0.0, poseData.pose.pose.position.z],[0.0,0.0,euler[1],poseData.pose.pose.position.y],[0.0,0.0,0.0,1.0]])
         #tf_mat_=self.tf_listener_.asMatrix("/map",pData.header)
         #from camera_link to /map
-        translation,quaternion=self.tf_listener("/map","/camera_link")
-        tf_mat_=tf_listener.fromTranslationRotation(translation,quaternion)
-
+        
     def terminateFlagCb(self,terminateFlag):
         if terminateFlag.data == False:
             return
         else:
             terminate = True
             return
-    """ 
+     
     def depthCb(self,data):
         assert isinstance(data,PointCloud2)
         self.point_cloud_=data.data#point_cloud2.read_points(data)
@@ -129,7 +141,7 @@ class BottleLocalizer():
         self.row_step_=data.row_step
         self.point_step_=data.point_step
         self.cloud_width_=data.width
-    
+    """
     def rgbCb(self,data):
         assert isinstance(data,msg_Image)
         self.rgb_image_=ros_numpy.numpify(data)

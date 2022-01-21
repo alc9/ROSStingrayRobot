@@ -20,6 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   image_transport
   cv_bridge
+  tf
 )
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenCV REQUIRED)
