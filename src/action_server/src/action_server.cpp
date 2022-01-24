@@ -95,8 +95,8 @@ class MoveStingrayAction{
         //initialize subscribers
         void initializeSubscribers(void){
 		//may need to switch to sensor fusion if there are too many dropped frames
-        	gt_odom_sub_=nh_.subscribe("rtabmap/odom",1,&MoveStingrayAction::subscriberCbOdom,this);
-		gt_emergency_stop_sub_ = nh_.subscribe("stingray/control/emergency_stop_flag",1,&MoveStingrayAction::subscriberCbES,this);
+        	gt_odom_sub_=nh_.subscribe("/rtabmap/odom",1,&MoveStingrayAction::subscriberCbOdom,this);
+		gt_emergency_stop_sub_ = nh_.subscribe("/stingray/control/emergency_stop_flag",1,&MoveStingrayAction::subscriberCbES,this);
 		ROS_INFO_STREAM("Subscribers initialized");
         }
 
@@ -108,13 +108,18 @@ class MoveStingrayAction{
 	    pause_flag_pub_ = nh_.advertise<std_msgs::Bool>("stingray/control/pause_flag",0);
 	    ROS_INFO_STREAM("Publishers initialized");
         }
-
+	
+	void printOdom(){
+		std::cout<<"x: "<<x_<<" y: "<<y_<<" z: "<< z_ <<" x0: "<<x0_<<" y0: "<<y0_<<" z0: "<<z0_<<std::endl;
+	}
         //define callback functions
         //callback for get_pos_sub_ and helper functions
         void subscriberCbOdom(const nav_msgs::Odometry::ConstPtr &info) {
-            x_=info->pose.pose.position.x;
+            ROS_INFO_STREAM("Cbodom()");
+	    x_=info->pose.pose.position.x;
             z_=info->pose.pose.position.y;
             y_=info->pose.pose.position.z;
+	    //std::cout<<"x: "<<x_<<" y: "<<y_<<" z: "<< z_ <<std::endl;
 	    tf::Quaternion tmpQuat;
 	    double x0,y0,z0;
 	    tf::quaternionMsgToTF(info->pose.pose.orientation,tmpQuat);
@@ -155,6 +160,7 @@ class MoveStingrayAction{
 		f_right_.data = nomF_ + deltaF_;
 		frequency_left_pub_.publish(f_left_);
 		frequency_right_pub_.publish(f_right_);
+		printOdom();
 	}
 
 	//calculates the distance between the current location and the goal location in 3D 
@@ -222,6 +228,7 @@ class MoveStingrayAction{
 	}
 
 	bool goToGoal(){
+		ROS_INFO_STREAM("goToGoal()");
 		feedback_.distance=calcDistance3D();
 		if (feedback_.distance < approach_distance_){
 			//goal complete send results
@@ -258,6 +265,7 @@ class MoveStingrayAction{
 	}
 
         void actionCb(const action_server::defGoalConstPtr &goal){
+		//TODO: add rate to reduce processing load
 		//goal id 0,1,2 = search,move to location,move to home location (stop at end)	
 		if(goal->id>0){
             		//set goal location

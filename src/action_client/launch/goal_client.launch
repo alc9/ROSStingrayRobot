@@ -1,0 +1,4 @@
+<launch>
+    <arg name="args1"/>
+    <node name="action_client_node" pkg="action_client" type="action_client_node" output="screen" args="$(arg args1)"/>
+</launch>

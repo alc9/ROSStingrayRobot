@@ -1,18 +1,15 @@
 ______
 TODO:
-run_robot.sh - check i2c, and call the various launch files
-configure launch file
+configure launch files
 compute resource monitor node
-power supply testing
 servo power monitor node
 actuator_left(update left actuator to include nose)
-water leakage and temperature/pressure arduino node
-Test optional load goals state from cache
+perform IMU calibration 
+adjust settings for opensource tracking
 test pipeline 
 ______
 In progress:
-perform IMU calibration 
-adjust settings for opensource tracking
+Test optional load goals state from cache
 ______
 Finished:
 finish writing action_server (integrate python control into c++ code)

@@ -2,6 +2,7 @@
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
 #include <action_client/defAction.h>
+#include <boost/filesystem.hpp>
 #include <queue> 
 #include <vector>
 #include <string>
@@ -16,6 +17,8 @@
 #include <object_detection/Localization.h>
 #include <object_detection/LocalizationRequest.h>
 #include <object_detection/LocalizationResponse.h>
+using namespace boost::filesystem;
+//namespace fs = std::experimental::filesystem::v1;
 //TODO: publisher shuts down object_detection
 /*
  * The action client handles goal based behaviour
@@ -45,20 +48,34 @@ class GoalClient{
 	bool mission_complete_;
 	//std::vector<std::vector<float>>way_points_;
     public:
-        GoalClient(double searchTime,float convergeSpeed):
+        GoalClient(double searchTime,float convergeSpeed,bool loadFromCache=false):
             action_client_(nh_,"stingray/actions",true),search_time_(searchTime),converge_speed_(convergeSpeed){
                 ROS_INFO_STREAM("goal_client is waiting for action_client server...");
 		action_client_.waitForServer();
                 ROS_INFO_STREAM("Server is now up for goal_client!");
 		current_goal_id_ = 0;
 		goal_id_queue_.push(1);
-		goal_id_queue_.push(2);
-		object_detected_=false;
+		goal_id_queue_.push(2);	
 		converging_=true;
 		mission_complete_=false;
 		goal_initial_distance_ = 0;
 		goal_location_achieved_=false;
 		begin_time_=0;
+		if (loadFromCache){
+			object_detected_=true;
+			goal_location_queue_=loadGoalLocation();
+			goal_location_=goal_location_queue_.front();
+			ROS_INFO_STREAM(goal_location_.size());
+			current_goal_id_=goal_id_queue_.front();
+			printGoalLocation();
+			setGoal();
+			//goal is ID = 1
+			sendGoal();
+
+		}
+		else{
+			object_detected_=false;
+		}
 		ROS_INFO_STREAM("GoalClient initialized...");
             }
 	~GoalClient(){}
@@ -67,13 +84,13 @@ class GoalClient{
 	void printGoalLocation(){
 		std::string infoString=std::string("Current goal location: "); 
 		infoString.append(std::to_string(goal_location_[0]));
-	       	infoString.append(", ");
+	       	infoString.append(",");
 		infoString.append(std::to_string(goal_location_[1]));
-	       	infoString.append(", "); 
+	       	infoString.append(","); 
 	       	infoString.append(std::to_string(goal_location_[2]));
 		ROS_INFO_STREAM(infoString);
 	}
-	
+		
 	void saveGoalLocation(){
 		//copy queue
 		auto queueCp= goal_location_queue_;
@@ -85,29 +102,50 @@ class GoalClient{
 			goalLocationVector.push_back(front[0]);
 			goalLocationVector.push_back(front[1]);
 			goalLocationVector.push_back(front[2]);
-			queueCp.pop();	
 		}
 
 		for(auto goalLocation=goalLocationVector.begin();goalLocation!=goalLocationVector.end();goalLocation++){
 			infoString.append(std::to_string(*goalLocation));
 	       		infoString.append(",");
 		}
-		std::ofstream out("cache/goalPositions.csv");
+		std::ofstream out("/home/stingray/stingray_ws/src/action_client/src/cache/goalPositions.csv");
 		out << infoString;
 		out.close();
+		ROS_INFO_STREAM("Goal location saved to cache");
 	}
 	
 	std::queue<std::vector<float>> loadGoalLocation(){
+		std::string path={"/home/stingray/stingray_ws/src/action_client/src/cache/goalPositions.csv"};
 		auto readFileIntoString=[](const std::string& path)->std::string{
 			auto ss = std::ostringstream{};
 			std::ifstream input_file(path);
 			if (!input_file.is_open()){
-				ROS_INFO_STREAM("File is upon - please close for writing to");
+				ROS_INFO_STREAM("File is open or does not exist");
+				ros::shutdown();
 			}
 			ss<<input_file.rdbuf();
 			return ss.str();
 		};
-		std::string gpString=readFileIntoString("cache/goalPositions.csv");
+		try{
+			if (!boost::filesystem::exists(path)){
+				ROS_INFO_STREAM("path to goalPosition does not exist...");
+				ROS_INFO_STREAM("current path"<<boost::filesystem::current_path());
+				ros::shutdown();
+			}
+			if (boost::filesystem::path(path).extension()!=".csv"){
+				ROS_INFO_STREAM("File extension should be .csv");
+				ros::shutdown();
+			}
+		} catch(const boost::filesystem::filesystem_error& e){
+			std::cerr<<std::endl<<"Error:" << e.what() << std::endl;
+			ros::shutdown();
+		} catch(const std::exception& e){
+			std::cerr<<std::endl<<"Error: " << e.what()<<std::endl;
+			ros::shutdown();
+		}
+
+		std::string gpString=readFileIntoString(path);
+		//std::cout<<gpString<<std::endl;	
 		//move positions into goal location queue
 		std::vector<float>tmpVect;
 		std::queue<std::vector<float>> queuePos;
@@ -124,7 +162,9 @@ class GoalClient{
 				ss.ignore();
 			}
 		}
-		return queuePos;	
+		ROS_INFO_STREAM("Goal location loaded from cache");
+		return queuePos;
+
 	}
 
 	void reset(){
@@ -134,6 +174,7 @@ class GoalClient{
 	
 	}
 	void sendGoal(){
+		ROS_INFO_STREAM("sending goal location");
 		converging_=true;
 		begin_time_ = ros::Time::now().toSec();
 		goal_location_achieved_=false;
@@ -146,6 +187,7 @@ class GoalClient{
 	bool getMissionStatus(){return mission_complete_;}
 	
 	void setGoal(){
+		ROS_INFO_STREAM("setting goal location");
 		goal_.x=goal_location_[0];
 		goal_.y=goal_location_[1];
 		goal_.z=goal_location_[2];
@@ -192,7 +234,6 @@ class GoalClient{
 		/*
 		 * Main function called during operation
 		 */
-		//TODO: while safety subscriber is true
 		while(ros::ok()){
 			if (current_goal_id_==0){
 				if(!searchForObject()){
@@ -232,7 +273,6 @@ class GoalClient{
 				else{
 					//search for the second bottle
 					goal_location_=goal_location_queue_.front();
-					goal_location_queue_.pop();
 				}
 				//inform of new goal location
 				setGoal();
@@ -317,10 +357,8 @@ class GoalClient{
 				//set goal_location_queue
 				setGoalLocationQueue(localizationSrv.response.Coords);
 				goal_location_=goal_location_queue_.front();
-				goal_location_queue_.pop();
 				//set new goal
 				current_goal_id_=goal_id_queue_.front();
-				goal_id_queue_.pop();
 				object_detected_=true;
 				return true;	
 			}
@@ -338,9 +376,7 @@ class GoalClient{
 				//set goal_location_queue
 				setGoalLocationQueue(localizationSrv.response.Coords);	
 				goal_location_=goal_location_queue_.front();
-				goal_location_queue_.pop();
 				current_goal_id_=goal_id_queue_.front();
-				goal_id_queue_.pop();
 				object_detected_=true;
 				return true;	
 			}
@@ -358,10 +394,17 @@ class GoalClient{
 //////////main code///////////////
 int main(int argc,char** argv){
     ros::init(argc,argv,"action_client_node");
-    GoalClient stingrayGoalActionClient(140,0.05);    
-    stingrayGoalActionClient.searchForObjectTest();
+    if (argc==2 && std::string(argv[1])=="Y"){
+	GoalClient stingrayGoalActionClient(140,0.05, std::string(argv[1])=="Y"?true:false); 	
+    	//stingrayGoalActionClient.searchForObjectTest();
+	stingrayGoalActionClient.goalClientMain();
+    }
+    else{
+   	GoalClient stingrayGoalActionClient(140,0.05);
+	stingrayGoalActionClient.goalClientMain();
+    	//stingrayGoalActionClient.searchForObjectTest();
+    }
     //topic callbacks are triggered when ros::spin()
     //is this necessary
-    ros::spin();
     return 0;
 }
