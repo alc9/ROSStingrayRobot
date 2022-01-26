@@ -6,7 +6,8 @@ servo power monitor node
 actuator_left(update left actuator to include nose)
 perform IMU calibration 
 adjust settings for opensource tracking
-test pipeline 
+test pipeline
+set limit on frequency publish 
 ______
 In progress:
 Test optional load goals state from cache

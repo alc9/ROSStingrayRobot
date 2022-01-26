@@ -46,10 +46,10 @@ int main(int argc,char** argv){
     	auto isRightActuator=false;
     	auto servoLowerLimit=50.0;
     	auto servoUpperLimit=150.0;
-    	auto numberServos=6;
+    	auto numberServos=2;
     	auto delayTime=0.01;
     	auto resolution=0.18;
-    	auto winderRadius=0.007/2;
+    	auto winderRadius=0.006/2;
     	auto rayThickness=0.008;
     	auto alphaLink=15.0;
     	auto frequency=std::stof(argv[3]);
@@ -57,7 +57,7 @@ int main(int argc,char** argv){
 		std::cout<<"invalid frequency parameter: "<<frequency<<std::endl;
 	}
     	//65.0 and 115.0
-	ActuatorMultiWave <6,double>actuator(isRightActuator,servoLowerLimit,servoUpperLimit,numberServos,delayTime,resolution,winderRadius,rayThickness,alphaLink,frequency);	
+	ActuatorMultiWave <2,double>actuator(isRightActuator,servoLowerLimit,servoUpperLimit,numberServos,delayTime,resolution,winderRadius,rayThickness,alphaLink,frequency);	
 	actuator.setWaveArray();
 	if (demo){
 		while(ros::ok()){

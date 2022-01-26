@@ -116,9 +116,7 @@ class ActuatorMultiWave {
         ROS_INFO_STREAM("initializing emergency stop wave");
         if (numberServos_==2){
             double alphaLinkIterator = (pi/180.00)*(15.0);
-            //double deltaL=4*this->rayThickness_/2*sin(alphaLinkIterator/2);
-	    double deltaL;
-	    deltaL=5*this->rayThickness_/2*sin(alphaLinkIterator/2);
+            double deltaL=4*this->rayThickness_/2*sin(alphaLinkIterator/2);
             double servoAngle=90.0+((deltaL/(this->winderRadius_))*180.00/pi);
             ROS_INFO_STREAM("emergencyStopVector initialized for single actuator with  angle" <<servoAngle);
             emergencyStopVector.push_back(servoAngle);
@@ -135,15 +133,8 @@ class ActuatorMultiWave {
                 waveError=true;
                 break;
                 }
-            //double deltaL=4*this->rayThickness_/2*sin(alphaLinkIterator/2);
-            double deltaL;
-		if (servoIterator==2){
-                	deltaL=5*this->rayThickness_/2*sin(alphaLinkIterator/2);
-		}
-		else{
-			deltaL=4*this->rayThickness_/2*sin(alphaLinkIterator/2);	
-		}
-	    if(!std::isfinite(deltaL)){
+            double deltaL=4*this->rayThickness_/2*sin(alphaLinkIterator/2);
+            if(!std::isfinite(deltaL)){
                 ROS_ERROR_STREAM("Error: non-finite input for deltaL "<<deltaL);
                 waveError=true;
                 break;
@@ -176,6 +167,7 @@ class ActuatorMultiWave {
         if (this->frequency_==0.0){
 		return 0;
 	}
+	ROS_INFO_STREAM("setWaveArray()");
         auto tmpWaveContainer=std::vector<T>();
         bool waveError=false;
         double tIterator = 0;
@@ -189,13 +181,7 @@ class ActuatorMultiWave {
                     break;
                 }
                 ROS_INFO_STREAM("alphaLinkIterator"<<alphaLinkIterator);
-		double deltaL;
-		if (servoIterator==2){
-                	deltaL=5*this->rayThickness_/2*sin(alphaLinkIterator/2);
-		}
-		else{
-			deltaL=4*this->rayThickness_/2*sin(alphaLinkIterator/2);	
-		}
+                double deltaL=4*this->rayThickness_/2*sin(alphaLinkIterator/2);
                 if(!std::isfinite(deltaL)){
                     ROS_ERROR_STREAM("Error: non-finite input for deltaL "<<deltaL);
                     waveError=true;

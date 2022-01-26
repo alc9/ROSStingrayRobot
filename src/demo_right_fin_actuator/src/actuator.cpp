@@ -16,7 +16,7 @@
 //TODO: if system is at medium safety - e.g quite hot then clamp frequency params / amplitude
 
 int main(int argc,char** argv){
-	ros::init(argc,argv,"demo_left_fin_actuator_node");
+	ros::init(argc,argv,"demo_right_fin_actuator_node");
 	ros::NodeHandle nh;
 	bool setup;
 	bool demo;
@@ -43,13 +43,13 @@ int main(int argc,char** argv){
 
 	//ros::NodeHandle nh;
     	//0.008
-    	auto isRightActuator=false;
+    	auto isRightActuator=true;
     	auto servoLowerLimit=50.0;
     	auto servoUpperLimit=150.0;
-    	auto numberServos=6;
+    	auto numberServos=2;
     	auto delayTime=0.01;
     	auto resolution=0.18;
-    	auto winderRadius=0.007/2;
+    	auto winderRadius=0.006/2;
     	auto rayThickness=0.008;
     	auto alphaLink=15.0;
     	auto frequency=std::stof(argv[3]);
@@ -57,7 +57,7 @@ int main(int argc,char** argv){
 		std::cout<<"invalid frequency parameter: "<<frequency<<std::endl;
 	}
     	//65.0 and 115.0
-	ActuatorMultiWave <6,double>actuator(isRightActuator,servoLowerLimit,servoUpperLimit,numberServos,delayTime,resolution,winderRadius,rayThickness,alphaLink,frequency);	
+	ActuatorMultiWave <2,double>actuator(isRightActuator,servoLowerLimit,servoUpperLimit,numberServos,delayTime,resolution,winderRadius,rayThickness,alphaLink,frequency);	
 	actuator.setWaveArray();
 	if (demo){
 		while(ros::ok()){
