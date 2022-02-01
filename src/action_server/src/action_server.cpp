@@ -115,7 +115,6 @@ class MoveStingrayAction{
         //define callback functions
         //callback for get_pos_sub_ and helper functions
         void subscriberCbOdom(const nav_msgs::Odometry::ConstPtr &info) {
-            ROS_INFO_STREAM("Cbodom()");
 	    x_=info->pose.pose.position.x;
             z_=info->pose.pose.position.y;
             y_=info->pose.pose.position.z;
