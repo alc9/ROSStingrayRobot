@@ -1,7 +1,8 @@
 #include <ros/ros.h>
-
+#include <tf2_eigen/tf2_eigen.h>
 #include <actionlib/server/simple_action_server.h>
 #include<action_server/defAction.h>
+#include <tf/transform_listener.h>
 //#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Quaternion.h>
@@ -39,6 +40,7 @@ class MoveStingrayAction{
         //pose identifies tells us location and orientation of camera
         //TODO:check odom sub quality - if low switch to sensor fusion
 	ros::Subscriber gt_odom_sub_;
+	//tf::TransformListener tf_listener_;
 	ros::Subscriber gt_emergency_stop_sub_;
 	float x_;
         float y_;
@@ -95,7 +97,8 @@ class MoveStingrayAction{
         //initialize subscribers
         void initializeSubscribers(void){
 		//may need to switch to sensor fusion if there are too many dropped frames
-        	gt_odom_sub_=nh_.subscribe("/rtabmap/odom",1,&MoveStingrayAction::subscriberCbOdom,this);
+		// rtabmap/odom - /odometry/filtered
+        	gt_odom_sub_=nh_.subscribe("/odometry/filtered",1,&MoveStingrayAction::subscriberCbOdom,this);
 		gt_emergency_stop_sub_ = nh_.subscribe("/stingray/control/emergency_stop_flag",1,&MoveStingrayAction::subscriberCbES,this);
 		ROS_INFO_STREAM("Subscribers initialized");
         }
@@ -114,20 +117,38 @@ class MoveStingrayAction{
 	}
         //define callback functions
         //callback for get_pos_sub_ and helper functions
-        void subscriberCbOdom(const nav_msgs::Odometry::ConstPtr &info) {
-	    x_=info->pose.pose.position.x;
-            z_=info->pose.pose.position.y;
-            y_=info->pose.pose.position.z;
+	void subscriberCbOdom(const nav_msgs::Odometry::ConstPtr &info) {
+	    this->x_=info->pose.pose.position.x;
+            this->z_=info->pose.pose.position.y;
+            this->y_=info->pose.pose.position.z;
 	    //std::cout<<"x: "<<x_<<" y: "<<y_<<" z: "<< z_ <<std::endl;
 	    tf::Quaternion tmpQuat;
 	    double x0,y0,z0;
 	    tf::quaternionMsgToTF(info->pose.pose.orientation,tmpQuat);
-	    tf::Matrix3x3(tmpQuat).getRPY(x0,z0,y0);
-	    x0_=x0;
-	    y0_=y0;
-	    z0_=z0;
+	    tf::Matrix3x3(tmpQuat).getRPY(x0,y0,z0);
+	    this->x0_=x0;
+	    this->z0_=y0;
+	    this->y0_=z0;
         }
-       	
+/*	
+	void getRobotOdom(){
+		try{
+			//geometry_msgs::TransformStamped tfStamped = this->tf_listener_.lookupTransform("/map","/camera_link",ros::Time::now());//ros::Duration(0.17));
+			auto tfMat = tf2::transformToEigen(tfStamped);
+			x_=tfMat[0][3];
+			y_=tfMat[2][3];
+			z_=tfMat[1][3];
+			x0_=tfMat[0][0];
+			y0_=tfMat[2][2];
+			z0_=tfMat[3][3];
+				
+		}
+		catch (tf2::TransformException ex){
+			ROS_ERROR("%s",ex.what());
+		}
+	
+	}
+*/
 	void subscriberCbES(const std_msgs::Bool::ConstPtr &info){
 		emergency_stop_flag_=info->data;
 	}
@@ -135,8 +156,8 @@ class MoveStingrayAction{
 	void setYawRef(){
 		// ab is the from the initial position to where it is heading, bc is to the goal position from the initial position
 		// z is out of the camera, x is to the left hand side of the camera, y is down
-		float nextX = z_ + 1.0 * cos(y0_);
-		float nextZ = x_ + 1.0 * sin(y0_);
+		float nextZ = z_ + 1.0 * cos(y0_);
+		float nextX = x_ + 1.0 * sin(y0_);
 		float ABx = nextX - x_;
 		float ABz = nextZ - z_;
 		float BCx = gp_x_ - x_;
@@ -149,17 +170,38 @@ class MoveStingrayAction{
 				+ BCz * BCz;
 		float angle = dotProduct;
 		angle/=sqrt(magAB * magBC);
-		yaw_ref_ = acos(angle);
+		this->yaw_ref_ = acos(angle);
 	}
 
        	void actuatorController(){
+		//this->getRobotOdom();
 		this->setYawRef();
-		float deltaF_=kp_ * (180.0/M_PI)*(yaw_ref_ - y0_);
-		f_left_.data = nomF_ - deltaF_;
-		f_right_.data = nomF_ + deltaF_;
+		float errorTheta = (180.0/M_PI)*(yaw_ref_ - y0_);
+		//if large error rotate
+		ROS_INFO_STREAM("error theta: "<<errorTheta<<" ref: "<<yaw_ref_<<" y0_: " << y0_);
+		if (abs(errorTheta) > 90.0){
+			if (errorTheta>0){
+				f_left_.data = 1.5;
+				f_right_.data = 0.0;
+			}
+			else{
+			f_right_.data = 1.5;
+			f_left_.data = 0.0;
+			}
+			frequency_left_pub_.publish(f_left_);
+			frequency_right_pub_.publish(f_right_);
+			return;	
+		}
+		float deltaF_=kp_ * errorTheta;
+		//set bounds for published frequency
+		f_left_.data = std::max(std::min(nomF_ - deltaF_,2.0f),-2.0f);
+		f_right_.data = std::max(std::min(nomF_ + deltaF_,2.0f),-2.0f);
 		frequency_left_pub_.publish(f_left_);
 		frequency_right_pub_.publish(f_right_);
 		printOdom();
+		if (abs(f_right_.data) == 2.0 || abs(f_left_.data == 2.0)){
+			ROS_INFO_STREAM("frequency is bounded");
+		}
 	}
 
 	//calculates the distance between the current location and the goal location in 3D 
@@ -227,7 +269,8 @@ class MoveStingrayAction{
 	}
 
 	bool goToGoal(){
-		ROS_INFO_STREAM("goToGoal()");
+		//this->getRobotOdom();
+		this->setYawRef();
 		feedback_.distance=calcDistance3D();
 		if (feedback_.distance < approach_distance_){
 			//goal complete send results

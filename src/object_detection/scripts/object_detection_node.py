@@ -83,7 +83,7 @@ class BottleLocalizer():
         #self.ats=TFMessageFilter(rgb_sub_,'/map','/camera_link',queue_size=100)
         #ats.registerCallback(self.syncMessageCb)
         self.valid_data_flag_=Bool()
-        tf_mat_=None
+        self.tf_mat_=None
         self.point_cloud_=None
         self.rgb_image_=None
         self.row_step_=None
@@ -109,7 +109,7 @@ class BottleLocalizer():
         if self.listener.canTransform("/map","/camera_link",pData.header.stamp):
             #translation,quaternion=self.tf_listener("/map","/camera_link")
             translation,quarternion = sel.tf_listener.lookupTransform("/map","/camera_link",pData.header.stamp)
-            tf_mat_=tf_listener.fromTranslationRotation(translation,quaternion)
+            self.tf_mat_=tf_listener.fromTranslationRotation(translation,quaternion)
         else:
             return
         #point cloud
@@ -149,6 +149,16 @@ class BottleLocalizer():
         self.pixels_per_row_=self.rgb_image_.shape[0]//data.height
         self.pixels_per_column_=self.rgb_image_.shape[1]//data.width
     """
+
+    def uniquify(path):
+        filename, extension = os.path.splitext(path)
+        counter = 1
+
+        while os.path.exists(path):
+            path = filename + " (" + str(counter) + ")" + extension
+            counter += 1
+        return path
+
     def saveVisual(self,numpyImage,resultsDf,show=False,uniqueId=False):
         import matplotlib.pyplot as plt
         import matplotlib.patches as patches 
@@ -159,7 +169,7 @@ class BottleLocalizer():
             yLen=row['ymax']-row['ymin']
             rect=patches.Rectangle((row['xmin'],row['ymin']),xLen,yLen,linewidth=1,edgecolor='r',facecolor='none')
             ax.add_patch(rect)
-        plt.savefig("objDetection.jpg")
+        plt.savefig(uniquify("objDetection.jpg"))
 
     def localize(self,req):
         #TODO: add error handling (see aruco detector)

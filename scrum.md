@@ -1,18 +1,20 @@
 ______
 TODO:
-configure launch files
-compute resource monitor node
+add cache to shutdown function goal_client
 servo power monitor node
-actuator_left(update left actuator to include nose)
+actuator_right(update right actuator to include nose)
 perform IMU calibration 
 adjust settings for opensource tracking
 test pipeline
-set limit on frequency publish 
+stream camera via network cable
 ______
 In progress:
-Test optional load goals state from cache
+
 ______
 Finished:
+turn when large error (more than 90 degrees)
+set limit on frequency publish 
+changing from rtabmap to robot_localization 
 finish writing action_server (integrate python control into c++ code)
 Test actuator control and commander c++ class
 Add commander for left actuator
