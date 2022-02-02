@@ -285,6 +285,10 @@ class ActuatorMultiWave {
                             double alphaLinkDamped = alphaLinkDampedFunc(tIteratorAdjustWaveForm);
                             double phaseDifDamped=phaseDifDampedFunc(tIteratorAdjustWaveForm);
                             double fDamped=fDampedFunc(tIteratorAdjustWaveForm);
+			    if (fGoal*1.05 > fDamped){
+				tIterator = 0.0;
+			    	break;
+			    }
                             ROS_INFO_STREAM("ALPHALINK DAMPED "<<alphaLinkDamped);
                             ROS_INFO_STREAM("PHASEDIF DAMPED "<<phaseDifDamped);
                             ROS_INFO_STREAM("FDAMPED "<<fDamped);

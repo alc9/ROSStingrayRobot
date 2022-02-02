@@ -2,16 +2,18 @@ ______
 TODO:
 add cache to shutdown function goal_client
 servo power monitor node
+obstacle avoidance
 actuator_right(update right actuator to include nose)
 perform IMU calibration 
 adjust settings for opensource tracking
 test pipeline
-stream camera via network cable
 ______
 In progress:
-
 ______
 Finished:
+stream camera via network
+add offset for stopping wave decay stopping
+error handling for nan from opensource_tracking data stream
 turn when large error (more than 90 degrees)
 set limit on frequency publish 
 changing from rtabmap to robot_localization 

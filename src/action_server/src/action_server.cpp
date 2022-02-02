@@ -118,7 +118,10 @@ class MoveStingrayAction{
         //define callback functions
         //callback for get_pos_sub_ and helper functions
 	void subscriberCbOdom(const nav_msgs::Odometry::ConstPtr &info) {
-	    this->x_=info->pose.pose.position.x;
+	    if (isnan(info->pose.pose.position.x) || isinf(info->pose.pose.position.x)){
+	    	return;
+	    }
+		this->x_=info->pose.pose.position.x;
             this->z_=info->pose.pose.position.y;
             this->y_=info->pose.pose.position.z;
 	    //std::cout<<"x: "<<x_<<" y: "<<y_<<" z: "<< z_ <<std::endl;
@@ -178,21 +181,25 @@ class MoveStingrayAction{
 		this->setYawRef();
 		float errorTheta = (180.0/M_PI)*(yaw_ref_ - y0_);
 		//if large error rotate
-		ROS_INFO_STREAM("error theta: "<<errorTheta<<" ref: "<<yaw_ref_<<" y0_: " << y0_);
-		if (abs(errorTheta) > 90.0){
-			if (errorTheta>0){
-				f_left_.data = 1.5;
-				f_right_.data = 0.0;
+		ROS_INFO_STREAM("error theta: "<<errorTheta);
+		if ((70.0 <= errorTheta)){
+			if (y0_<0){
+				f_right_.data = 1.5;
+				f_left_.data = 0.0;
 			}
 			else{
-			f_right_.data = 1.5;
-			f_left_.data = 0.0;
+			f_left_.data = 1.5;
+			f_right_.data = 0.0;
 			}
 			frequency_left_pub_.publish(f_left_);
 			frequency_right_pub_.publish(f_right_);
 			return;	
 		}
 		float deltaF_=kp_ * errorTheta;
+		if (isnan(deltaF_) || isinf(deltaF_)){
+			ROS_WARN_STREAM("nan encountered");
+			return;
+		}
 		//set bounds for published frequency
 		f_left_.data = std::max(std::min(nomF_ - deltaF_,2.0f),-2.0f);
 		f_right_.data = std::max(std::min(nomF_ + deltaF_,2.0f),-2.0f);

@@ -1,0 +1,3 @@
+<launch>
+    <node name="live_stream_node" pkg="live_stream" type="live_stream_node" output="screen"/>
+</launch>
