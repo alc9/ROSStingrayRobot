@@ -68,6 +68,7 @@ class MoveStingrayAction{
 	bool emergency_stop_flag_;
        	//state variable
 	int goal_id_;
+        bool reverse_;
 	//goal found when this far away
 	float approach_distance_;	
 
@@ -79,6 +80,7 @@ class MoveStingrayAction{
 		f_right_=std_msgs::Float32();
 		nomF_ = nomF;
 		kp_ = kp;
+                reverse_=false;
 		approach_distance_=approachDistance;
 		//goal id 0,1,2 = search,move to location,move to home location (stop at end)
 		//-1 indicates no state
@@ -182,19 +184,27 @@ class MoveStingrayAction{
 		float errorTheta = (180.0/M_PI)*(yaw_ref_ - y0_);
 		//if large error rotate
 		ROS_INFO_STREAM("error theta: "<<errorTheta);
-		if ((70.0 <= errorTheta)){
-			if (y0_<0){
+		if ((70.0 <= errorTheta) || (errorTheta >=-70.0)){
+		    reverse_=true;
+                }
+                if (reverse_){
+                    if ((3.0 <= errorTheta) || (errorTheta >=-3.0)){
+                        reverse_=false;
+                    }
+                    else{
+                        if (y0_<0){
 				f_right_.data = 1.5;
 				f_left_.data = 0.0;
 			}
 			else{
-			f_left_.data = 1.5;
-			f_right_.data = 0.0;
+			    f_left_.data = 1.5;
+			    f_right_.data = 0.0;
 			}
 			frequency_left_pub_.publish(f_left_);
 			frequency_right_pub_.publish(f_right_);
-			return;	
-		}
+		    return;
+                    }
+                }
 		float deltaF_=kp_ * errorTheta;
 		if (isnan(deltaF_) || isinf(deltaF_)){
 			ROS_WARN_STREAM("nan encountered");
@@ -236,6 +246,7 @@ class MoveStingrayAction{
                 f_right_.data=0.0;
                 frequency_left_pub_.publish(f_left_);
                 frequency_right_pub_.publish(f_right_);
+                reverse_=false;
                 //ROS_INFO_STREAM("Preempted: id="<<goal->id<<" ");//<<action_name_.c_str());
 		pause_flag_.data = true;
 		pause_flag_pub_.publish(pause_flag_);
