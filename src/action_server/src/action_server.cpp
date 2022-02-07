@@ -21,6 +21,9 @@
 /*
  * The action server handles the controller and plant control system, it is communicated to by the action client which handles safety and current goal logic. The action client sends goal and cancellation messages to the action server, whilst the action server sends status,result and feedback messages to the action client.
  */
+template<typename T> int sgn(T val){
+    return (T(0) < val)-(val < T(0));
+}
 //TODO: determine a suitable error threshold for modifying the frequency of one of the fins
 //class containing action server methods
 
@@ -51,8 +54,13 @@ class MoveStingrayAction{
 	//define publishers
         ros::Publisher frequency_left_pub_;
         ros::Publisher frequency_right_pub_;
+        ros::Publisher offset_left_pub_;
+        ros::Publisher offset_right_pub_;
+        ros::Publisher nose_angle_pub_;
 	ros::Publisher pause_flag_pub_;
-    	//control parameters
+        ros::Publisher error_fin_pub_;
+        ros::Publisher error_offset_pub_;	
+        //control parameters
 	float gp_x_;
 	float gp_y_;
 	float gp_z_;
@@ -60,26 +68,41 @@ class MoveStingrayAction{
 	float nomF_;
 	float deltaF_;
 	float yaw_ref_;
+        float kpD_;
 	//published messages
 	std_msgs::Float32 f_left_;
 	std_msgs::Float32 f_right_;
+        std_msgs::Float32 offset_left_;
+        std_msgs::Float32 offset_right_;
+        std_msgs::Float32 nose_angle_;
+        std_msgs::Float32 error_offset_;
 	std_msgs::Bool pause_flag_;
+        std_msgs::Float32 error_fin_;
 	//safety subscriber
 	bool emergency_stop_flag_;
        	//state variable
 	int goal_id_;
         bool reverse_;
 	//goal found when this far away
-	float approach_distance_;	
+	float approach_distance_;
+        //user options
+        bool test_with_reverse_;
 
     public:
-        MoveStingrayAction(std::string name,float nomF, float kp,float approachDistance=0.2) : 
+        MoveStingrayAction(std::string name,float nomF, float kp, float kpD,bool testWithReverse = true, float approachDistance=0.2) : 
             action_server_(nh_,name,boost::bind(&MoveStingrayAction::actionCb,this,_1),false),action_name_(name){
                 emergency_stop_flag_ = false;
 		f_left_=std_msgs::Float32();
 		f_right_=std_msgs::Float32();
-		nomF_ = nomF;
+		offset_left_=std_msgs::Float32();
+                offset_right_=std_msgs::Float32();
+                nose_angle_ = std_msgs::Float32();
+                error_fin_=std_msgs::Float32();
+                error_offset_=std_msgs::Float32();
+                nomF_ = nomF;
 		kp_ = kp;
+                kpD_ = kpD;
+                test_with_reverse_ = testWithReverse;
                 reverse_=false;
 		approach_distance_=approachDistance;
 		//goal id 0,1,2 = search,move to location,move to home location (stop at end)
@@ -110,8 +133,13 @@ class MoveStingrayAction{
             //initialize publisher with queue =1 
             frequency_left_pub_=nh_.advertise<std_msgs::Float32>("stingray/control/frequency_left",0);
             frequency_right_pub_=nh_.advertise<std_msgs::Float32>("stingray/control/frequency_right",0);
+            offset_left_pub_=nh_.advertise<std_msgs::Float32>("stingray/control/offset_left",0);
+            offset_right_pub_=nh_.advertise<std_msgs::Float32>("stingray/control/offset_right",0);
+            nose_angle_pub_=nh_.advertise<std_msgs::Float32>("stingray/control/nose_angle",0);
 	    pause_flag_pub_ = nh_.advertise<std_msgs::Bool>("stingray/control/pause_flag",0);
-	    ROS_INFO_STREAM("Publishers initialized");
+            error_fin_pub_ = nh_.advertise<std_msgs::Float32>("stingray/control/fin_error",0);
+	    error_offset_pub_ = nh_.advertise<std_msgs::Float32>("stingray/control/nose_error",0);
+            ROS_INFO_STREAM("Publishers initialized");
         }
 	
 	void printOdom(){
@@ -178,13 +206,29 @@ class MoveStingrayAction{
 		this->yaw_ref_ = acos(angle);
 	}
 
+        void depthController(){
+            //larger than 2m results in max offset for servo
+            float deltaTheta = kpD_ * (gp_z_-z_);
+            error_offset_.data = deltaTheta;
+            error_offset_pub_.publish(error_offset_);
+            float deltaTheta_=std::max(std::min(deltaTheta,10.0f),-10.0f);
+            offset_left_.data = sgn(f_left_.data)*deltaTheta;
+            offset_right_.data = sgn(f_right_.data)*deltaTheta;
+            nose_angle_.data = sgn(deltaTheta_)*26.0;
+            offset_left_pub_.publish(offset_left_);
+            offset_right_pub_.publish(offset_right_);
+            nose_angle_pub_.publish(nose_angle_);
+        }
+
        	void actuatorController(){
 		//this->getRobotOdom();
 		this->setYawRef();
 		float errorTheta = (180.0/M_PI)*(yaw_ref_ - y0_);
+                error_fin_.data = errorTheta;
+                error_fin_pub_.publish(error_fin_);
 		//if large error rotate
 		ROS_INFO_STREAM("error theta: "<<errorTheta);
-		if ((70.0 <= errorTheta) || (errorTheta >=-70.0)){
+		if (((70.0 <= errorTheta) || (errorTheta >=-70.0)) && test_with_reverse_){
 		    reverse_=true;
                 }
                 if (reverse_){
@@ -296,6 +340,7 @@ class MoveStingrayAction{
 		}
 		action_server_.publishFeedback(feedback_);
 		actuatorController();
+                depthController();
 		return false;
 	}
 
@@ -370,7 +415,8 @@ int main(int argc, char** argv){
     //first argument is the name space the client uses for communication 
     float nomF = 1.4;
     float kp = 0.05;
-    MoveStingrayAction stingrayActionServer("stingray/actions",nomF,kp);
+    float kpD = 0.165;
+    MoveStingrayAction stingrayActionServer("stingray/actions",nomF,kp,kpD);
     ros::spin();
     return 0;
 }
