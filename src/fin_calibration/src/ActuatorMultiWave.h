@@ -34,7 +34,6 @@ class ActuatorMultiWave {
     double frequency_; 
     int numberServos_;
     double libraryDelayTime_;
-    std::string path_;
     std_msgs::String actuatorSide_;
     double servoLowerLimit_;
     double servoUpperLimit_;
@@ -52,11 +51,9 @@ class ActuatorMultiWave {
 	 //if isRightActuator then right hand size address buses are used, this is for the bottom servo hat stack
 	 if(isRightActuator){
 	 	actuatorSide_.data="right";
-	 	path_=std::string("/home/stingray/stringray_ws/src/demo_right_fin_actuator/src/calibration/calibrationRight.csv");
 	 }
 	 else{
 		actuatorSide_.data="left";
-		path_=std::string("/home/stingray/stringray_ws/src/demo_left_fin_actuator/src/calibration/calibrationLeft.csv");
 	 } 
 	 ROS_INFO_STREAM("Actuator connected on " << this->actuatorSide_);
 	    numberServos_ =numberServos;
@@ -441,7 +438,7 @@ class ActuatorMultiWave {
         //add a small delay time
         ros::Duration(this->delayTime_).sleep();
     }
-	//load calibration
+
     void waveServos(){
         //waveVector[0] is not possible if the matrix is square
 	if (this->frequency_==0){
@@ -459,18 +456,7 @@ class ActuatorMultiWave {
             ros::Duration(this->delayTime_).sleep();
         }
     }
-    /*
-	std::vector<float> loadCalibrationFile(){
-            std::string infoString;
-            for(auto calibrationsIterator=calibrations_.begin();calibrationsIterator!=calibrations_.end();calibrationsIterator++){
-		infoString.append(std::to_string(*calibrationsIterator));
-	       	infoString.append(",");
-            }
-	    std::ofstream out(path_);
-	    out << infoString;
-	    out.close();
-        }
-    */
+
     void waveServosInverted(){
         //waveVector[0] is not possible if the matrix is square
         for (int waveIndex=0;waveIndex!=waveVector[0].size();waveIndex++){

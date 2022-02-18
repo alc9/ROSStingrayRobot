@@ -1,0 +1,3 @@
+<launch>
+    <node name="fin_calibration_node" pkg="fin_calibration" type="fin_calibration_node" output="screen"/>
+</launch>

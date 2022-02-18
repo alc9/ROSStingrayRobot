@@ -43,21 +43,22 @@ int main(int argc,char** argv){
 
 	//ros::NodeHandle nh;
     	//0.008
+        std::cout<<"running demo_left_fin_actuator"<<std::endl;
     	auto isRightActuator=false;
-    	auto servoLowerLimit=50.0;
-    	auto servoUpperLimit=150.0;
-    	auto numberServos=6;
+    	auto servoLowerLimit=10.0;
+    	auto servoUpperLimit=170.0;
+    	auto numberServos=10;
     	auto delayTime=0.01;
     	auto resolution=0.18;
-    	auto winderRadius=0.007/2;
-    	auto rayThickness=0.008;
+    	auto winderRadius=0.009/2;
+    	auto rayThickness=0.018;
     	auto alphaLink=15.0;
     	auto frequency=std::stof(argv[3]);
 	if (frequency < -2.0 || frequency > 2.0){
 		std::cout<<"invalid frequency parameter: "<<frequency<<std::endl;
 	}
     	//65.0 and 115.0
-	ActuatorMultiWave <6,double>actuator(isRightActuator,servoLowerLimit,servoUpperLimit,numberServos,delayTime,resolution,winderRadius,rayThickness,alphaLink,frequency);	
+	ActuatorMultiWave <10,double>actuator(isRightActuator,servoLowerLimit,servoUpperLimit,numberServos,delayTime,resolution,winderRadius,rayThickness,alphaLink,frequency);	
 	actuator.setWaveArray();
 	if (demo){
 		while(ros::ok()){
@@ -65,7 +66,9 @@ int main(int argc,char** argv){
         		actuator.waveServos();
         		actuator.waveServos();
         		actuator.waveServos();
-			actuator.emergencyStop(1);
+                        actuator.waveServos();
+                        actuator.waveServos();
+			//actuator.emergencyStop(1);
 		}
 	}
 	else if (setup){

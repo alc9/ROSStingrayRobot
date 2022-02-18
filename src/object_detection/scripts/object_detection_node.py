@@ -89,7 +89,7 @@ class BottleLocalizer():
         self.row_step_=None
         self.point_step_=None
         self.cloud_width_=None
-        BESTMODELPATH="/home/stingray/stingray_ws/src/object_detection/weights/weights.pt"
+        BESTMODELPATH="/home/stingray/stingray_ws/src/object_detection/weights/bestN.pt"
         MODELPATH='ultralytics/yolov5'
         #setup gpu
         self.device_ = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -169,7 +169,7 @@ class BottleLocalizer():
             yLen=row['ymax']-row['ymin']
             rect=patches.Rectangle((row['xmin'],row['ymin']),xLen,yLen,linewidth=1,edgecolor='r',facecolor='none')
             ax.add_patch(rect)
-        plt.savefig(uniquify("objDetection.jpg"))
+        plt.savefig(uniquify("./results/objDetection.jpg"))
 
     def localize(self,req):
         #TODO: add error handling (see aruco detector)
@@ -241,7 +241,7 @@ def main():
     #TODO:synchronize pose with camera to use global coordinates
     # https://support.intelrealsense.com/hc/en-us/community/posts/360052359633-D435i-real-world-coordinates  
     rospy.init_node('bottle_localization_node')
-    scoreThreshold=0.25
+    scoreThreshold=0.80
     #time limit handled by client
     bottleLocalizer=BottleLocalizer(scoreThreshold)
     localize=rospy.Service('stingray/localize/service',Localization,bottleLocalizer.localize)
