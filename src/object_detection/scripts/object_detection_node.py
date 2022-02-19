@@ -42,6 +42,7 @@ import collections
 import os
 from std_msgs.msg import Bool
 import ros_numpy
+from collections import deque
 #from message_filters import SimpleFilter
 
 
@@ -62,13 +63,32 @@ terminate = False
 #TODO: ensure all data is synchronized
 class BottleLocalizer():
     def __init__(self,scoreThreshold):
-        #run for 1:30 or until found
-        #cv bridge is very iffy
-        #self.bridge_=CvBridge()
-        #subscribers have synchronized data from realsense2 implementation
-        #aligned_depth_to_color / depth
-        # "/camera/depth/color/points"
-        #TODO: choose between pose based on quality
+        #self.ats=TFMessageFilter(rgb_sub_,'/map','/camera_link',queue_size=100)
+        #ats.registerCallback(self.syncMessageCb)
+        self.valid_data_flag_=Bool()
+        self.tf_mat_=None
+        self.point_cloud_=None
+        self.rgb_image_=None
+        self.row_step_=None
+        self.point_step_=None
+        self.cloud_width_=None
+        self.rgb_deque_=deque()
+        self.pc_deque_=deque()
+        BESTMODELPATH="/home/stingray/stingray_ws/src/object_detection/weights/bestN.pt"
+        #MODELPATH='/home/stingray/.cache/torch/hub/'#ultralytics/yolov5'
+        MODELPATH='ultralytics/yolov5'
+        #setup gpu
+        self.device_ = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print("using - ",self.device_)
+        #get model setup
+        self.model_=torch.hub.load(MODELPATH,'custom',path=BESTMODELPATH,force_reload=True)#,source='local')#classes=2)
+        dummyImage = np.zeros((320,180,3),np.uint8)
+        print("inputting dummy image...")
+        self.model_(dummyImage)
+        print("model initialized")
+        self.score_threshold_=scoreThreshold
+        #initializePublishers()
+        print("initializing subscribers...")
         self.depth_sub_=message_filters.Subscriber("/camera/depth/color/points",PointCloud2)#,buff_size=2**21)
         self.rgb_sub_=message_filters.Subscriber("/camera/color/image_raw",msg_Image)#,buff_size=2**21)
         #publishers
@@ -79,54 +99,64 @@ class BottleLocalizer():
         self.tf_listener_=tf.TransformListener()
         self.ats = message_filters.ApproximateTimeSynchronizer([self.depth_sub_,self.rgb_sub_],queue_size=1,slop=0.5)
         #filter code for tf
-          
-        #self.ats=TFMessageFilter(rgb_sub_,'/map','/camera_link',queue_size=100)
-        #ats.registerCallback(self.syncMessageCb)
-        self.valid_data_flag_=Bool()
-        self.tf_mat_=None
-        self.point_cloud_=None
-        self.rgb_image_=None
-        self.row_step_=None
-        self.point_step_=None
-        self.cloud_width_=None
-        BESTMODELPATH="/home/stingray/stingray_ws/src/object_detection/weights/bestN.pt"
-        MODELPATH='ultralytics/yolov5'
-        #setup gpu
-        self.device_ = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print("using - ",self.device_)
-        #get model setup
-        self.model_=torch.hub.load(MODELPATH,'custom',path=BESTMODELPATH,force_reload=True)#,source='local')#classes=2)
-        dummyImage = np.zeros((320,180,3),np.uint8)
-        print("inputting dummy image...")
-        self.model_(dummyImage)
-        self.score_threshold_=scoreThreshold
-        #initializePublishers()
+        self.ats.registerCallback(self.syncMessagesCb)
+        print("subscribers initialized")
         print("object detection service initialized") 
-
+    
+    def setSyncedTf(self):
+        #rgb and pc data is always ahead of odom transforms, this syncs to the most recent data
+        tmp_pc_deque = deque()
+        tmp_rgb_deque=deque()
+        print("setSyncedTf with length", len(self.pc_deque_))
+        while len(self.pc_deque_) > 0:
+            pData = self.pc_deque_.popleft()
+            rgbData = self.rgb_deque_.popleft()
+            if self.tf_listener_.canTransform("/map","/camera_link",pData.header.stamp):
+                #translation,quaternion=self.tf_listener("/map","/camera_link")
+                translation,quaternion = self.tf_listener_.lookupTransform("/map","/camera_link",pData.header.stamp)
+                self.tf_mat_=self.tf_listener_.fromTranslationRotation(translation,quaternion)
+                self.point_cloud_ =pData.data
+                self.row_step_=pData.row_step
+                self.point_step_=pData.point_step
+                self.cloud_width_=pData.width
+                self.rgb_image_=ros_numpy.numpify(rgbData)
+                self.pixels_per_row_=self.rgb_image_.shape[0]//rgbData.height
+                self.pixels_per_column_=self.rgb_image_.shape[1]//rgbData.width
+                #remove redundant data
+                self.pc_deque_=tmp_pc_deque
+                self.rgb_deque_=tmp_rgb_deque
+                print("can transform between frames")
+                return True
+            else:
+                #data is still relevant 
+                tmp_pc_deque.append(pData)
+                tmp_rgb_deque.append(pData)
+        #save all data -> more recent than odom tf
+        self.pc_deque_=tmp_pc_deque
+        self.rgb_deque_=tmp_rgb_deque
+        print("cannot transform between any frames in deque")
+        return False
+ 
     def syncMessagesCb(self,pData,rgbData):
         assert isinstance(pData,PointCloud2)
-        assert isinstance(data,msg_Image)
-        if self.listener.canTransform("/map","/camera_link",pData.header.stamp):
-            #translation,quaternion=self.tf_listener("/map","/camera_link")
-            translation,quarternion = sel.tf_listener.lookupTransform("/map","/camera_link",pData.header.stamp)
-            self.tf_mat_=tf_listener.fromTranslationRotation(translation,quaternion)
-        else:
-            return
+        assert isinstance(rgbData,msg_Image)
+        if len(self.pc_deque_) == 10:
+            #remove the rightmost item
+            self.pc_deque_.pop()
+            self.rgb_deque_.pop()
+        #add a new entry to the left side
+        self.pc_deque_.appendleft(pData)
+        self.rgb_deque_.appendleft(rgbData)
         #point cloud
-        self.point_cloud_=pData.data
-        self.row_step_=pData.row_step
-        self.point_step_=pData.point_step
-        self.cloud_width_=pData.width
+        #self.point_cloud_=pData.data
+        #self.row_step_=pData.row_step
+        #self.point_step_=pData.point_step
+        #self.cloud_width_=pData.width
         #rgb image
-        self.rgb_image_=ros_numpy.numpify(rgbData)
-        self.pixels_per_row_=self.rgb_image_.shape[0]//rgbData.height
-        self.pixels_per_column_=self.rgb_image_.shape[1]//rgbData.width 
-        #calculate the tf matrix between camera to world/map
-        #euler = tf.transformation.euler_from_quaternion(poseData.pose.pose.orientation)
-        #tf_mat_=np.array([[euler[0],0.0,0.0,poseData.pose.pose.position.x],[0.0,euler[2],0.0, poseData.pose.pose.position.z],[0.0,0.0,euler[1],poseData.pose.pose.position.y],[0.0,0.0,0.0,1.0]])
-        #tf_mat_=self.tf_listener_.asMatrix("/map",pData.header)
-        #from camera_link to /map
-        
+        #self.rgb_image_=ros_numpy.numpify(rgbData)
+        #self.pixels_per_row_=self.rgb_image_.shape[0]//rgbData.height
+        #self.pixels_per_column_=self.rgb_image_.shape[1]//rgbData.width 
+                
     def terminateFlagCb(self,terminateFlag):
         if terminateFlag.data == False:
             return
@@ -150,7 +180,7 @@ class BottleLocalizer():
         self.pixels_per_column_=self.rgb_image_.shape[1]//data.width
     """
 
-    def uniquify(path):
+    def uniquify(self,path):
         filename, extension = os.path.splitext(path)
         counter = 1
 
@@ -169,7 +199,7 @@ class BottleLocalizer():
             yLen=row['ymax']-row['ymin']
             rect=patches.Rectangle((row['xmin'],row['ymin']),xLen,yLen,linewidth=1,edgecolor='r',facecolor='none')
             ax.add_patch(rect)
-        plt.savefig(uniquify("./results/objDetection.jpg"))
+        plt.savefig(self.uniquify("/home/stingray/stingray_ws/src/object_detection/scripts/results/objDetection.jpg"))
 
     def localize(self,req):
         #TODO: add error handling (see aruco detector)
@@ -192,6 +222,8 @@ class BottleLocalizer():
             self.valid_data_flag_.data=True
             self.valid_data_flag_pub_.publish(self.valid_data_flag_)
         """
+        if self.setSyncedTf()==False:
+            return
         startTime=rospy.Time.now().to_sec()
         objsDf=self.model_(self.rgb_image_).pandas().xyxy[0] 
         print("time taken: ",rospy.Time.now().to_sec()-startTime)
@@ -245,9 +277,9 @@ def main():
     #time limit handled by client
     bottleLocalizer=BottleLocalizer(scoreThreshold)
     localize=rospy.Service('stingray/localize/service',Localization,bottleLocalizer.localize)
-    #while terminate ==False and rospy.ok():
-    #    pass
-    #localize.shutdown("Service not needed")
-    rospy.spin()
+    while terminate ==False and not rospy.is_shutdown():
+        rospy.spin()
+    localize.shutdown("Service not needed")
+    #rospy.spin()
 if __name__ == "__main__":
     main()

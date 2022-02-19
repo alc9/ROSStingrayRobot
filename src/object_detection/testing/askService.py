@@ -5,7 +5,7 @@ from std_msgs.msg import Empty
 from object_detection.msg import GoalPos, GoalPositions
 from object_detection.srv import Localization
 
-def testingResponse(serviceObject,serviceName="localize"):
+def testingResponse(serviceObject,serviceName="stingray/localize/service"):
     #check that service is available
     rospy.wait_for_service(serviceName)
     try:
