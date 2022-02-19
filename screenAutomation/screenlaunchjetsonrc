@@ -1,0 +1,4 @@
+screen -t base bash -c "watch free -g; exec bash -i"
+split
+focus down
+screen -t project 2
