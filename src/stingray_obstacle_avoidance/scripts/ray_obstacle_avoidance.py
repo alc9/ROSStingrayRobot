@@ -2,10 +2,15 @@
 from __future__ import absolute_import
 import numpy as np
 import open3d as o3d
+#https://github.com/kucars/laser_collision_detection/blob/1b78fe5a95584d135809b1448d33675bb8fee250/src/laser_obstacle_detect.cpp#L252
+#TODO: best method is to generate an open3d.geometry.Octree then generate boxes
 import fcl
 import rospy
-from sensor_msgs.msg import PointCloud2
-from sensor_msgs import point_cloud2
+#from sensor_msgs.msg import PointCloud2
+#from sensor_msgs import point_cloud2
+#octomap_msgs   
+from octomap_msgs import Octomap,binaryMsgToMap
+import octomap
 from nav_msgs.msg import Odometry
 import tf
 from collections import deque
@@ -15,7 +20,7 @@ import ros_numpy
 class CollisionDetector():
     def __init__(self):
         self.collide = False
-        self.obstacle_sub_ = rospy.Subscriber("/rtabmap/octomap_obstacles",PointCloud2,callback=self.obstacleSubCb,queue_size=1)
+        self.obstacle_sub_ = rospy.Subscriber("/rtabmap/octomap_binary",Octomap,callback=self.obstacleSubCb,queue_size=1)
         self.obstacle_map_deque_=deque()
         self.collision_pub_=rospy.Publisher("stingray/control/collision")
         self.is_collision_=Bool()
@@ -41,15 +46,15 @@ class CollisionDetector():
                 translation,quaternion = self.tf_listener_.lookupTransform("/map","camera_link",self.pc_tmp.header.stamp)
                 #self.tf_mat_=self.tf_listener_.fromTranslationRotation(translation,quaternion)
                 self.robot_collision_obj_.setTranslation(translation)
-                pc_tmp = ros_numpy.numpify(pc_tmp)
+                #pc_tmp = ros_numpy.numpify(pc_tmp)
                 #bounding volume hierarchy
-                self.obstacle_map_=fcl.BVHModel()
-
+                #self.obstacle_map_=fcl.BVHModel()
                 #points = np.zeros((pc_tmp.shape[0],3))
                 #points[:,0]=pc_tmp['x']
                 #points[:,1]=pc_tmp['y']
                 #points[:,2]=pc_tmp['z']
                 #self.obstacle_map_=pcl.PointCloud(np.array(points,dtype=np.float32))
+                self.obstacle_map_=fcl.CollisionObject(fcl.OcTree(binaryMsgToMap(pc_tmp),fcl.Transform)) 
                 return True
         self.obstacle_map_=None
         return False
