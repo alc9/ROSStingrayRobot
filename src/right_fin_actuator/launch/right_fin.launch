@@ -1,0 +1,3 @@
+<launch>
+    <node name="right_fin_actuator_node" pkg="right_fin_actuator" type="right_fin_actuator_node" output="screen"/>
+</launch>

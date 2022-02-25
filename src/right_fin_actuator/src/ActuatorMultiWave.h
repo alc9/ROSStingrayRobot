@@ -34,6 +34,7 @@ class ActuatorMultiWave {
     double frequency_; 
     int numberServos_;
     double libraryDelayTime_;
+    std::string path_;
     std_msgs::String actuatorSide_;
     double servoLowerLimit_;
     double servoUpperLimit_;
@@ -51,9 +52,11 @@ class ActuatorMultiWave {
 	 //if isRightActuator then right hand size address buses are used, this is for the bottom servo hat stack
 	 if(isRightActuator){
 	 	actuatorSide_.data="right";
+	 	path_=std::string("/home/stingray/stringray_ws/src/demo_right_fin_actuator/src/calibration/calibrationRight.csv");
 	 }
 	 else{
 		actuatorSide_.data="left";
+		path_=std::string("/home/stingray/stringray_ws/src/demo_left_fin_actuator/src/calibration/calibrationLeft.csv");
 	 } 
 	 ROS_INFO_STREAM("Actuator connected on " << this->actuatorSide_);
 	    numberServos_ =numberServos;
@@ -116,7 +119,9 @@ class ActuatorMultiWave {
         ROS_INFO_STREAM("initializing emergency stop wave");
         if (numberServos_==2){
             double alphaLinkIterator = (pi/180.00)*(15.0);
-            double deltaL=4*this->rayThickness_/2*sin(alphaLinkIterator/2);
+            //double deltaL=4*this->rayThickness_/2*sin(alphaLinkIterator/2);
+	    double deltaL;
+	    deltaL=5*this->rayThickness_/2*sin(alphaLinkIterator/2);
             double servoAngle=90.0+((deltaL/(this->winderRadius_))*180.00/pi);
             ROS_INFO_STREAM("emergencyStopVector initialized for single actuator with  angle" <<servoAngle);
             emergencyStopVector.push_back(servoAngle);
@@ -133,8 +138,15 @@ class ActuatorMultiWave {
                 waveError=true;
                 break;
                 }
-            double deltaL=4*this->rayThickness_/2*sin(alphaLinkIterator/2);
-            if(!std::isfinite(deltaL)){
+            //double deltaL=4*this->rayThickness_/2*sin(alphaLinkIterator/2);
+            double deltaL;
+		if (servoIterator==2){
+                	deltaL=5*this->rayThickness_/2*sin(alphaLinkIterator/2);
+		}
+		else{
+			deltaL=4*this->rayThickness_/2*sin(alphaLinkIterator/2);	
+		}
+	    if(!std::isfinite(deltaL)){
                 ROS_ERROR_STREAM("Error: non-finite input for deltaL "<<deltaL);
                 waveError=true;
                 break;
@@ -167,7 +179,6 @@ class ActuatorMultiWave {
         if (this->frequency_==0.0){
 		return 0;
 	}
-	ROS_INFO_STREAM("setWaveArray()");
         auto tmpWaveContainer=std::vector<T>();
         bool waveError=false;
         double tIterator = 0;
@@ -181,7 +192,13 @@ class ActuatorMultiWave {
                     break;
                 }
                 ROS_INFO_STREAM("alphaLinkIterator"<<alphaLinkIterator);
-                double deltaL=4*this->rayThickness_/2*sin(alphaLinkIterator/2);
+		double deltaL;
+		if (servoIterator==2){
+                	deltaL=5*this->rayThickness_/2*sin(alphaLinkIterator/2);
+		}
+		else{
+			deltaL=4*this->rayThickness_/2*sin(alphaLinkIterator/2);	
+		}
                 if(!std::isfinite(deltaL)){
                     ROS_ERROR_STREAM("Error: non-finite input for deltaL "<<deltaL);
                     waveError=true;
@@ -271,6 +288,10 @@ class ActuatorMultiWave {
                             double alphaLinkDamped = alphaLinkDampedFunc(tIteratorAdjustWaveForm);
                             double phaseDifDamped=phaseDifDampedFunc(tIteratorAdjustWaveForm);
                             double fDamped=fDampedFunc(tIteratorAdjustWaveForm);
+			    if (fGoal*1.05 > fDamped){
+				tIterator = 0.0;
+			    	break;
+			    }
                             ROS_INFO_STREAM("ALPHALINK DAMPED "<<alphaLinkDamped);
                             ROS_INFO_STREAM("PHASEDIF DAMPED "<<phaseDifDamped);
                             ROS_INFO_STREAM("FDAMPED "<<fDamped);
@@ -420,7 +441,7 @@ class ActuatorMultiWave {
         //add a small delay time
         ros::Duration(this->delayTime_).sleep();
     }
-
+	//load calibration
     void waveServos(){
         //waveVector[0] is not possible if the matrix is square
 	if (this->frequency_==0){
@@ -438,7 +459,18 @@ class ActuatorMultiWave {
             ros::Duration(this->delayTime_).sleep();
         }
     }
-
+    /*
+	std::vector<float> loadCalibrationFile(){
+            std::string infoString;
+            for(auto calibrationsIterator=calibrations_.begin();calibrationsIterator!=calibrations_.end();calibrationsIterator++){
+		infoString.append(std::to_string(*calibrationsIterator));
+	       	infoString.append(",");
+            }
+	    std::ofstream out(path_);
+	    out << infoString;
+	    out.close();
+        }
+    */
     void waveServosInverted(){
         //waveVector[0] is not possible if the matrix is square
         for (int waveIndex=0;waveIndex!=waveVector[0].size();waveIndex++){
