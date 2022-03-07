@@ -86,7 +86,7 @@ class ActuatorMultiWave {
 	 //set driver and memory locations
 	 //right actuator is connected to the bottom servo hat 
 	 if (isRightActuator){
-		driver.init(1,0x41);
+		driver.init(1,0x42);
 		driver.setPWMFreq(60);
 		ROS_INFO_STREAM("initialized right actuator driver");
 	 }

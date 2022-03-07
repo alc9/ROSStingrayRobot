@@ -69,7 +69,7 @@ int main(int argc,char** argv){
     	auto delayTime=0.01;
     	auto resolution=0.18;
     	auto winderRadius=0.009/2;
-    	auto rayThickness=0.018;
+    	auto rayThickness=0.01925;
     	auto alphaLink=15.0;
     	auto frequency=0.0;
     	//65.0 and 115.0
