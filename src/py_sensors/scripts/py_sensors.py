@@ -4,6 +4,7 @@ from bmp180.bmp180 import bmp180
 from grovejetson.grovejetson import grovejetson
 from std_msgs.msg import Bool,Float32
 from jtop import jtop
+# old 0x77 
 class PySensors():
     def __init__(self,grovepin = 40, bmpaddress=0x77):
         self.bmp_ = bmp180(bmpaddress)

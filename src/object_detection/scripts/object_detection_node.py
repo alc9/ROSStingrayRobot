@@ -74,7 +74,7 @@ class BottleLocalizer():
         self.cloud_width_=None
         self.rgb_deque_=deque()
         self.pc_deque_=deque()
-        BESTMODELPATH="/home/stingray/stingray_ws/src/object_detection/weights/bestN.pt"
+        BESTMODELPATH="/home/stingray/stingray_ws/src/object_detection/weights/bestNlarge.pt"
         #MODELPATH='/home/stingray/.cache/torch/hub/'#ultralytics/yolov5'
         MODELPATH='ultralytics/yolov5'
         #setup gpu

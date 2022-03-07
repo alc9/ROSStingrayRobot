@@ -1,4 +1,4 @@
 <launch>
     <arg name="my_args"/>
-    <node name="demo_fin_actuator_node" pkg="demo_right_fin_actuator" type="demo_right_fin_actuator_node" output="screen" args="$(arg my_args)"/>
+    <node name="demo_right_node" pkg="demo_right_fin_actuator" type="demo_right_fin_actuator_node" output="screen" args="$(arg my_args)"/>
 </launch>

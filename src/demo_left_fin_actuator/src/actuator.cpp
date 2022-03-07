@@ -16,7 +16,7 @@
 //TODO: if system is at medium safety - e.g quite hot then clamp frequency params / amplitude
 
 int main(int argc,char** argv){
-	ros::init(argc,argv,"demo_left_fin_actuator_node");
+	ros::init(argc,argv,"demo_left_node");
 	ros::NodeHandle nh;
 	bool setup;
 	bool demo;
@@ -51,7 +51,7 @@ int main(int argc,char** argv){
     	auto delayTime=0.01;
     	auto resolution=0.18;
     	auto winderRadius=0.009/2;
-    	auto rayThickness=0.018;
+    	auto rayThickness=0.01925;
     	auto alphaLink=15.0;
     	auto frequency=std::stof(argv[3]);
 	if (frequency < -2.0 || frequency > 2.0){
