@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#/usr/bin/env python
 """
 5v - Red
 GND - Black
